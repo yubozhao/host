@@ -1,0 +1,339 @@
+#!/bin/sh
+# portrait: the tools that travel with an Agent of You portrait folder
+# (PORTRAIT-FORMAT.md). It lives at <portrait>/scripts/portrait and works on
+# the folder above it, or on PORTRAIT_DIR when that is set. POSIX sh and awk.
+#
+#   portrait check                       validate the folder; prints "ok" or one problem per line
+#   portrait install <agent>             make the portrait available to an agent; prints each path
+#   portrait uninstall <agent>           remove exactly what install wrote
+#   portrait snapshot                    copy the current portrait to versions/<YYYY-MM-DD-HHMM>/
+#   portrait verdict <n> <right|wrong> [reason]
+#                                        record the person's verdict on scenario n (snapshots first)
+#
+# Agents: claude, codex, gemini, cursor, kimi, alma.
+set -u
+
+here=$(cd "$(dirname "$0")" && pwd)
+dir="${PORTRAIT_DIR:-$(cd "$here/.." && pwd)}"
+agents="claude codex gemini cursor kimi alma"
+
+# front <key>: a top-level or metadata value from PORTRAIT.md's frontmatter.
+front() {
+	awk -v key="$1" '
+		NR == 1 { if ($0 != "---") exit; next }
+		$0 == "---" { exit }
+		{
+			line = $0
+			sub(/^  /, "", line)
+			if (index(line, key ": ") == 1) {
+				v = substr(line, length(key) + 3)
+				if (v ~ /^".*"$/) v = substr(v, 2, length(v) - 2)
+				print v
+				exit
+			}
+		}
+	' "$dir/PORTRAIT.md"
+}
+
+check() {
+	[ -f "$dir/PORTRAIT.md" ] || { echo "problem: no PORTRAIT.md in $dir"; return 1; }
+	for f in scenarios.md examples.md corrections.md; do
+		[ -f "$dir/$f" ] || echo "problem: no $f"
+	done
+	{
+		# Frontmatter: SKILL.md fields at the top level, portrait fields
+		# under metadata.
+		awk -v folder="$(basename "$dir")" '
+			NR == 1 { if ($0 != "---") { print "problem: PORTRAIT.md must start with frontmatter"; bad = 1; exit } fm = 1; next }
+			fm && $0 == "---" { fm = 0; done = 1; exit }
+			fm && /^[a-z]+:/ { top = $0; sub(/:.*/, "", top); val = $0; sub(/^[a-z]+: ?/, "", val); T[top] = val; inmeta = (top == "metadata"); next }
+			fm && inmeta && /^  [a-z]+: / { k = $0; sub(/^  /, "", k); sub(/:.*/, "", k); v = $0; sub(/^  [a-z]+: /, "", v); gsub(/^"|"$/, "", v); M[k] = v; next }
+			fm && /[^ ]/ { print "problem: unexpected frontmatter line: " $0; bad = 1 }
+			END {
+				if (bad) exit
+				if (!done) { print "problem: the frontmatter is not closed"; exit }
+				if (T["name"] !~ /^[a-z0-9]+(-[a-z0-9]+)*$/ || length(T["name"]) > 64) print "problem: name must be lowercase letters, digits and hyphens"
+				if (T["name"] != folder) print "problem: name " T["name"] " must match the folder " folder
+				d = T["description"]
+				if (d == "" || length(d) > 1024) print "problem: description must be 1 to 1024 characters"
+				if (d !~ /^".*"$/ && index(d, ": ") > 0) print "problem: quote a description that contains \": \""
+				if (M["format"] != "portrait/1") print "problem: metadata.format must be portrait/1"
+				if (M["version"] !~ /^[0-9]+$/) print "problem: metadata.version must be a whole number"
+				if (M["made"] !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) print "problem: metadata.made must be YYYY-MM-DD"
+				if (M["updated"] !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) print "problem: metadata.updated must be YYYY-MM-DD"
+				if (M["agents"] == "") print "problem: metadata.agents must name the agents whose parts are in it"
+			}
+		' "$dir/PORTRAIT.md"
+		# The ten sections, in order, and no unscoped conflict.
+		awk '
+			BEGIN { n = split("Who you are|How you decide|When to act and when to ask|Never|What they care about|How they do things|What they know|How they communicate|People and places they work in|What you don'"'"'t know", want, "|"); i = 1 }
+			/^## / { h = substr($0, 4); if (i <= n && h == want[i]) i++; else if (h in seen || i > n) print "problem: unexpected section ## " h; seen[h] = 1 }
+			/\(conflict\)/ { print "problem: line " NR " is marked (conflict): state which rule applies where" }
+			END { if (i <= n) print "problem: missing or out-of-order section ## " want[i] }
+		' "$dir/PORTRAIT.md"
+		# Scenarios: numbered blocks with every field.
+		[ -f "$dir/scenarios.md" ] && awk '
+			function close_block() {
+				if (num == "") return
+				for (f in need) if (!(f in got)) print "problem: scenario " num " has no " f
+				if (verdict !~ /^(right|wrong|not yet)$/) print "problem: scenario " num " verdict must be right, wrong or not yet"
+				if (verdict == "wrong" && reason == "") print "problem: scenario " num " is wrong but has no reason"
+				if (date !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) print "problem: scenario " num " date must be YYYY-MM-DD"
+				delete got
+			}
+			BEGIN { split("Situation|Agent would|Verdict|Reason|Date", fl, "|"); for (i in fl) need[fl[i]] = 1 }
+			/^## / { close_block(); num = $2; sub(/\.$/, "", num); verdict = ""; reason = ""; date = ""; if (num !~ /^[0-9]+$/) print "problem: scenario heading must be ## <number>. <title>: " $0; next }
+			/^- [A-Z][a-z ]+:/ {
+				k = substr($0, 3); sub(/:.*/, "", k); v = $0; sub(/^- [A-Z][a-z ]+: ?/, "", v)
+				got[k] = 1
+				if (k == "Verdict") verdict = v
+				if (k == "Reason") reason = v
+				if (k == "Date") date = v
+			}
+			END { close_block() }
+		' "$dir/scenarios.md"
+		# Privacy: no email, phone number, file path or secret in any file.
+		find "$dir" -path "$dir/versions" -prune -o -path "$dir/scripts" -prune -o -type f -name '*.md' -print | while IFS= read -r f; do
+			awk -v file="${f#"$dir"/}" -v home="$HOME" '
+				function phone(s,   rest, run, digits) {
+					rest = s
+					while (match(rest, /[+(]?[0-9][0-9 ().-]*[0-9]/)) {
+						run = substr(rest, RSTART, RLENGTH); digits = run; gsub(/[^0-9]/, "", digits)
+						if (length(digits) >= 10) return 1
+						rest = substr(rest, RSTART + RLENGTH)
+					}
+					return 0
+				}
+				{
+					why = ""
+					if ($0 ~ /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z][A-Za-z]+/) why = "an email address"
+					else if (phone($0)) why = "a phone number"
+					else if ($0 ~ /(^|[ (`"])(~\/|\/Users\/|\/home\/|\/root\/)/ || (home != "" && index($0, home) > 0)) why = "a file path"
+					else if ($0 ~ /(sk|pk|rk)-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|-----BEGIN/) why = "a secret"
+					if (why != "") print "problem: " file " line " NR " has " why
+				}
+			' "$f"
+		done
+	} >"$dir/.check.$$" 2>&1
+	problems=$(cat "$dir/.check.$$")
+	rm -f "$dir/.check.$$"
+	if [ -n "$problems" ]; then
+		printf '%s\n' "$problems"
+		return 1
+	fi
+	echo "ok: $(front name) (portrait/1, version $(front version))"
+}
+
+# stamp_dir <parent> [suffix]: a new versions/<YYYY-MM-DD-HHMM> folder name.
+stamp_dir() {
+	stamp=$(date +%Y-%m-%d-%H%M)${2:-}
+	path="$1/$stamp"
+	n=2
+	while [ -e "$path" ]; do
+		path="$1/$stamp-$n"
+		n=$((n + 1))
+	done
+	echo "$path"
+}
+
+snapshot() {
+	[ -f "$dir/PORTRAIT.md" ] || return 0
+	umask 077
+	mkdir -p "$dir/versions"
+	to=$(stamp_dir "$dir/versions")
+	mkdir -p "$to"
+	for entry in "$dir"/* "$dir"/.[!.]*; do
+		[ -e "$entry" ] || continue
+		case "$(basename "$entry")" in versions | scripts | .git) continue ;; esac
+		cp -R "$entry" "$to/"
+	done
+	echo "versions/$(basename "$to")"
+}
+
+verdict() {
+	n="$1"
+	v="$2"
+	reason="${3:-}"
+	case "$v" in right | wrong) ;; *) echo "verdict must be right or wrong" >&2; exit 64 ;; esac
+	[ "$v" = right ] || [ -n "$reason" ] || { echo "a wrong verdict needs a reason" >&2; exit 64; }
+	grep -q "^## $n\. " "$dir/scenarios.md" 2>/dev/null || { echo "no scenario $n" >&2; exit 1; }
+	snapshot >/dev/null
+	awk -v n="$n" -v v="$v" -v reason="$reason" -v today="$(date +%Y-%m-%d)" '
+		/^## / { cur = $2; sub(/\.$/, "", cur) }
+		cur == n && /^- Verdict:/ { print "- Verdict: " v; next }
+		cur == n && /^- Reason:/ { print "- Reason: " reason; next }
+		cur == n && /^- Date:/ { print "- Date: " today; next }
+		{ print }
+	' "$dir/scenarios.md" >"$dir/scenarios.md.tmp" && mv "$dir/scenarios.md.tmp" "$dir/scenarios.md"
+	chmod 600 "$dir/scenarios.md"
+	echo "scenario $n: $v"
+}
+
+# pointer <name>: a small skill that tells an agent to load the portrait, so
+# it always reads the current PORTRAIT.md.
+pointer() {
+	printf -- '---\nname: %s\ndescription: %s\n---\n\n' "$1" "\"$(front description | sed 's/\\/\\\\/g; s/"/\\"/g')\""
+	printf 'Read %s/PORTRAIT.md now and follow it. Read its other files (examples.md, scenarios.md, corrections.md, references/) only when it points you to them.\n' "$dir"
+}
+
+# block_file <agent>: the instructions file that gets a marked block.
+block_file() {
+	case "$1" in
+	codex) echo "$HOME/.codex/AGENTS.md" ;;
+	gemini) echo "$HOME/.gemini/GEMINI.md" ;;
+	esac
+}
+
+skill_dir() {
+	case "$1" in
+	claude) echo "$HOME/.claude/skills/portrait-$slug" ;;
+	cursor) echo "$HOME/.cursor/skills/portrait-$slug" ;;
+	kimi) echo "$HOME/.agents/skills/portrait-$slug" ;;
+	esac
+}
+
+# remove_block <file>: take out exactly the bytes install added, so the
+# person's own text is left byte for byte as it was. The begin marker records
+# how the block was joined: new (install created the file), empty (the file
+# was empty), nl (one blank line was added after a final newline) or raw (two
+# newlines were added to text with no final newline).
+remove_block() {
+	mark="${2:-host-portrait}"
+	[ -f "$1" ] || return 0
+	grep -q "^<!-- $mark:$slug:begin joined=" "$1" || return 0
+	created=""
+	grep -q "^<!-- $mark:$slug:begin joined=new " "$1" && created=1
+	awk -v slug="$slug" -v mark="$mark" '
+		BEGIN { RS = "\001" }
+		{ s = s $0 }
+		END {
+			b = "<!-- " mark ":" slug ":begin joined="
+			e = "<!-- " mark ":" slug ":end -->\n"
+			i = index(s, b)
+			while (i > 1 && substr(s, i - 1, 1) != "\n") { j = index(substr(s, i + 1), b); if (!j) { i = 0; break } i += j }
+			rest = substr(s, i)
+			j = index(rest, e)
+			if (!i || !j) { printf "%s", s; exit }
+			mode = substr(rest, length(b) + 1); mode = substr(mode, 1, index(mode, " ") - 1)
+			pre = substr(s, 1, i - 1); post = substr(rest, j + length(e))
+			if (mode == "nl" && substr(pre, length(pre) - 1) == "\n\n") pre = substr(pre, 1, length(pre) - 1)
+			if (mode == "raw" && substr(pre, length(pre) - 1) == "\n\n") pre = substr(pre, 1, length(pre) - 2)
+			printf "%s%s", pre, post
+		}
+	' "$1" >"$1.tmp" && mv "$1.tmp" "$1"
+	if [ -n "$created" ] && [ ! -s "$1" ]; then rm -f "$1"; fi
+}
+
+install_one() {
+	case "$1" in
+	claude | cursor | kimi)
+		d=$(skill_dir "$1")
+		mkdir -p "$d"
+		pointer "portrait-$slug" >"$d/SKILL.md"
+		chmod 644 "$d/SKILL.md"
+		echo "wrote $d/SKILL.md"
+		;;
+	codex | gemini)
+		f=$(block_file "$1")
+		mkdir -p "$(dirname "$f")"
+		remove_block "$f"
+		remove_block "$f" isoform-portrait
+		if [ ! -e "$f" ]; then
+			joined=new
+		elif [ ! -s "$f" ]; then
+			joined=empty
+		elif [ "$(tail -c 1 "$f" | wc -l | tr -d ' ')" = 1 ]; then
+			joined=nl
+			printf '\n' >>"$f"
+		else
+			joined=raw
+			printf '\n\n' >>"$f"
+		fi
+		{
+			echo "<!-- host-portrait:$slug:begin joined=$joined -->"
+			if [ "$1" = gemini ]; then
+				echo "The person's Agent of You portrait. Follow it; read its other files only when it points you to them."
+				echo "@$dir/PORTRAIT.md"
+			else
+				echo "Read $dir/PORTRAIT.md at the start of each task and follow it: it is the person's Agent of You portrait. Read its other files only when it points you to them."
+			fi
+			echo "<!-- host-portrait:$slug:end -->"
+		} >>"$f"
+		echo "wrote a portrait block in $f"
+		;;
+	alma)
+		tmp=$(mktemp "${TMPDIR:-/tmp}/portrait-skill.XXXXXX") || exit 1
+		pointer "portrait-$slug" >"$tmp"
+		if alma skill create "portrait-$slug" --file "$tmp" >/dev/null; then
+			echo "wrote alma:skill:portrait-$slug"
+		else
+			echo "alma could not add the portrait skill" >&2
+			rm -f "$tmp"
+			exit 1
+		fi
+		rm -f "$tmp"
+		;;
+	esac
+}
+
+uninstall_one() {
+	case "$1" in
+	claude | cursor | kimi)
+		d=$(skill_dir "$1")
+		if [ -f "$d/SKILL.md" ]; then
+			rm -f "$d/SKILL.md"
+			rmdir "$d" 2>/dev/null
+			echo "removed $d/SKILL.md"
+		fi
+		;;
+	codex | gemini)
+		f=$(block_file "$1")
+		# Blocks from before the rename carry the older isoform-portrait marker.
+		for mark in host-portrait isoform-portrait; do
+			if [ -f "$f" ] && grep -q "^<!-- $mark:$slug:begin joined=" "$f"; then
+				remove_block "$f" "$mark"
+				echo "removed the portrait block from $f"
+			fi
+		done
+
+		;;
+	alma)
+		alma skill uninstall "portrait-$slug" >/dev/null 2>&1 && echo "removed alma:skill:portrait-$slug"
+		;;
+	esac
+	return 0
+}
+
+known() {
+	for a in $agents; do
+		[ "$a" = "$1" ] && return 0
+	done
+	echo "unknown agent: $1 (one of: $agents)" >&2
+	exit 64
+}
+
+command="${1:-}"
+[ "$#" -gt 0 ] && shift
+case "$command" in
+check)
+	check
+	;;
+install | uninstall)
+	[ "$#" -eq 1 ] || { echo "usage: portrait $command <agent>" >&2; exit 64; }
+	known "$1"
+	[ -f "$dir/PORTRAIT.md" ] || { echo "no PORTRAIT.md in $dir" >&2; exit 1; }
+	slug=$(front name)
+	if [ "$command" = install ]; then install_one "$1"; else uninstall_one "$1"; fi
+	;;
+snapshot)
+	snapshot
+	;;
+verdict)
+	[ "$#" -ge 2 ] || { echo "usage: portrait verdict <n> <right|wrong> [reason]" >&2; exit 64; }
+	verdict "$1" "$2" "${3:-}"
+	;;
+*)
+	echo "usage: portrait check | install <agent> | uninstall <agent> | snapshot | verdict <n> <right|wrong> [reason]" >&2
+	exit 64
+	;;
+esac
