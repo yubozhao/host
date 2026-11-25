@@ -155,7 +155,7 @@ End your turn with these, in this order, short, and wait for nothing:
 
 1. One line per agent: how many lines and corrections its draft added, from the bundle summary, and its "Files I read" list.
 2. `Fidelity <score> from <K> recent decisions`: how often the portrait, built without them, decided as the person did. Or the `too few corrections to score` line.
-3. The weekly refresh: on, Mondays at 10:00, about 10 cases a week at medium effort, and the one command to stop it, `~/.agents/portraits/<name>/scripts/host schedule off`. Or the line `schedule on` printed for this computer.
+3. The weekly refresh: on, Mondays at 10:00, with the next run's date from the `schedule on` line (`next: Mon <date> 10:00`), about 10 cases a week at medium effort, and the one command to stop it, `~/.agents/portraits/<name>/scripts/host schedule off`. Or the line `schedule on` printed for this computer.
 4. Optional extras, the calibration scenarios: the line below, then this run's new scenarios, one line each with its number, situation and what the agent would do.
 
    > Calibration: here's how your agent would act in these situations. Mark any right or wrong, or skip.

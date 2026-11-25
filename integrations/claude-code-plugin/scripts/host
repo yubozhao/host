@@ -980,6 +980,15 @@ $(cat "$work/forward/holdout/results.md")"
 # schedule on|off|status: run the weekly refresh with launchd on macOS
 # (Mondays at 10:00; a week the computer is off is skipped, a sleeping Mac
 # runs it on wake). Elsewhere it prints a one-line way to schedule it.
+# next_monday: the date of the next Monday-10:00 run (today if it is Monday
+# before 10:00), YYYY-MM-DD, with BSD or GNU date.
+next_monday() {
+	dow=$(date +%u)
+	ahead=$(((8 - dow) % 7))
+	if [ "$ahead" -eq 0 ] && [ "$(date +%H%M)" -ge 1000 ]; then ahead=7; fi
+	date -v+"${ahead}"d +%Y-%m-%d 2>/dev/null || date -d "+$ahead days" +%Y-%m-%d
+}
+
 schedule_label="dev.host.refresh"
 schedule_one() {
 	plist="$HOME/Library/LaunchAgents/$schedule_label.plist"
@@ -1040,7 +1049,7 @@ PLIST
 		chmod 644 "$plist"
 		mkdir -p "$portrait/logs"
 		launchctl bootstrap "gui/$(id -u)" "$plist" >/dev/null 2>&1 || { echo "launchd did not take the weekly refresh; it is not on" >&2; rm -f "$plist"; exit 1; }
-		echo "weekly refresh on: Mondays at 10:00, logs in ${portrait#"$HOME"/}/logs"
+		echo "weekly refresh on: Mondays at 10:00 (next: Mon $(next_monday) 10:00), logs in ${portrait#"$HOME"/}/logs"
 		;;
 	off)
 		launchctl bootout "gui/$(id -u)/$schedule_label" >/dev/null 2>&1
@@ -1052,7 +1061,7 @@ PLIST
 		fi
 		;;
 	status)
-		if [ -f "$plist" ]; then echo "weekly refresh on: Mondays at 10:00"; else echo "weekly refresh off"; fi
+		if [ -f "$plist" ]; then echo "weekly refresh on: Mondays at 10:00 (next: Mon $(next_monday) 10:00)"; else echo "weekly refresh off"; fi
 		;;
 	*)
 		echo "usage: host schedule on|off|status" >&2
