@@ -1,9 +1,9 @@
 ---
-name: host-helper
-description: Helper for the host portrait. Another agent, the lead, runs it to draft the person's portrait, and the corrections they made, from this agent's own memory and history; it prints the draft and does nothing else. Use only when asked to run host-helper.
+name: portrait-helper
+description: Helper for the Agent of You portrait. Another agent, the lead, runs it to draft the person's portrait, and the corrections they made, from this agent's own memory and history; it prints the draft and does nothing else. Use only when asked to run portrait-helper.
 ---
 
-# host portrait helper
+# Portrait helper
 
 Another agent on this computer, the lead, is building the person's Agent of You portrait: a system prompt that lets any agent act the way the person would. It asked you for your part: a draft built only from what you, this agent, already know about the person, and the corrections they made to you. The lead merges your draft with the others, checks it with the person, and saves the result. You do none of that.
 
@@ -11,7 +11,7 @@ Another agent on this computer, the lead, is building the person's Agent of You 
 
 - **Read only.** Never edit, create or delete a file. Never run a command that changes anything, never install or update anything, and never upload.
 - **Never ask the person anything.** Nobody is watching this run. If something is unclear, leave it out or mark it "(guess)".
-- **Never act as a lead.** Do not run host or any other agent.
+- **Never act as a lead.** Do not run portrait-agents or any other agent.
 - **Print the draft as your whole answer, and nothing else.** No greeting, no summary, no questions.
 - **Use only your own memory and history.** Read only your own row in the table below.
 - **Find the corrections first.** Read the candidate corrections the lead's script found in your history (the file named at the end of these instructions), use only the person's own typed words, and print the real corrections under `### Corrections`, as the format below says. They matter more than anything else you print. Never open your history logs yourself; for Cursor, Kimi and Alma, follow the bounded search in the format below.
@@ -62,7 +62,7 @@ Corrections are the most important part of the draft: the moments the person ove
 
 **Only the person's own typed words count.** Many turns that reach you as the user's are not the person, and never count as a correction: tool results and command output; system reminders; messages from other sessions or agents (such as a cross-session message); task, CI and other automatic notices; pasted content; skill and command bodies; summaries of earlier conversations; and anything another agent wrote. A message wrapped in tags such as `<system-reminder>`, `<cross-session-message>`, `<task-notification>` or `<pasted_content>` is never the person.
 
-**Where the candidates come from.** For Claude, Codex and Gemini, `host history` has already searched your history for you: the person's own typed messages from the last 60 days with words such as "no", "instead", "don't", "stop", "why did you", "not that" or "I said", newest first, each with a short clip of your turn before it. Read only that list; never open your history logs yourself. For any other agent, look in your own past chats only if you can read them, by the same rules: newest first, only the last 60 days, search first and then read only about 20 lines around each hit, never a whole log, and stop at 30 corrections or after 4 minutes of searching.
+**Where the candidates come from.** For Claude, Codex and Gemini, `portrait-agents history` has already searched your history for you: the person's own typed messages from the last 60 days with words such as "no", "instead", "don't", "stop", "why did you", "not that" or "I said", newest first, each with a short clip of your turn before it. Read only that list; never open your history logs yourself. For any other agent, look in your own past chats only if you can read them, by the same rules: newest first, only the last 60 days, search first and then read only about 20 lines around each hit, never a whole log, and stop at 30 corrections or after 4 minutes of searching.
 
 Give each correction its candidate's date as `When:`; leave it out only when the date is unknown. A candidate is not always a correction ("no problem" is not one). Take at most 30 real ones, newest first, one per line, in this shape:
 
@@ -88,9 +88,9 @@ Each agent drafts only from its own memory and history, the row for itself. A fi
 
 | Agent | Its own memory | Its own history, for corrections |
 |---|---|---|
-| Claude | `~/.claude/CLAUDE.md` and every file it includes with an `@path` line; every memory file matching `~/.claude/projects/*/memory/*.md`; and the `CLAUDE.md` at the root of each project those memories belong to | its chat logs under `~/.claude/projects/`, searched for you by `host history claude` |
-| Codex | `~/.codex/AGENTS.md` (and `~/.codex/AGENTS.override.md`), and its memories under `~/.codex/memories_v2/` or `~/.codex/memories/` | `~/.codex/history.jsonl`, searched for you by `host history codex` |
-| Gemini | `~/.gemini/GEMINI.md`, including its "Gemini Added Memories" | the logs under `~/.gemini/tmp/`, searched for you by `host history gemini` |
+| Claude | `~/.claude/CLAUDE.md` and every file it includes with an `@path` line; every memory file matching `~/.claude/projects/*/memory/*.md`; and the `CLAUDE.md` at the root of each project those memories belong to | its chat logs under `~/.claude/projects/`, searched for you by `portrait-agents history claude` |
+| Codex | `~/.codex/AGENTS.md` (and `~/.codex/AGENTS.override.md`), and its memories under `~/.codex/memories_v2/` or `~/.codex/memories/` | `~/.codex/history.jsonl`, searched for you by `portrait-agents history codex` |
+| Gemini | `~/.gemini/GEMINI.md`, including its "Gemini Added Memories" | the logs under `~/.gemini/tmp/`, searched for you by `portrait-agents history gemini` |
 | Cursor | its user rules and memories as it knows them, `~/.cursor/rules/`, and the `AGENTS.md` files it is given | its own past chats, if it can read them |
 | Kimi | `~/.kimi-code/AGENTS.md`, `~/.agents/AGENTS.md`, and the older `~/.kimi/AGENTS.md` | its own past chats, if it can read them |
 | Alma | its own memories (what `alma memory list` shows) and its SOUL | its own past chats, if it can read them |

@@ -4,17 +4,17 @@
     "name": "host"
   },
   "metadata": {
-    "description": "The host plugin for Claude Code.",
-    "version": "0.8.1"
+    "description": "The portrait plugin for Claude Code.",
+    "version": "0.9.0"
   },
   "plugins": [
     {
-      "name": "host",
+      "name": "portrait",
       "description": "Build your portrait: a folder, like a skill, that lets any AI agent act the way you would, drawn from the memory and corrections of Claude and your other AI agents.",
-      "version": "0.8.1",
+      "version": "0.9.0",
       "source": "./integrations/claude-code-plugin",
       "author": {
-        "name": "host",
+        "name": "portrait",
         "url": "https://github.com/yubozhao/host"
       }
     }

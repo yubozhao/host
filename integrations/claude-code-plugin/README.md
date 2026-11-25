@@ -1,6 +1,6 @@
-# host for Claude Code
+# portrait for Claude Code
 
-This plugin adds `/host:build`, `/host:do` and `/host:fidelity` to Claude Code. It builds your Agent of You portrait: a folder, shaped like a skill folder, that lets any AI agent act as your agentic self, deciding, working and communicating the way you would. You share it the way you share skills: a git repository, a plugin or a zip. The format is in `integrations/portrait-spec/PORTRAIT-FORMAT.md`.
+This plugin adds `/portrait:build`, `/portrait:do` and `/portrait:fidelity` to Claude Code. It builds your Agent of You portrait: a folder, shaped like a skill folder, that lets any AI agent act as your agentic self, deciding, working and communicating the way you would. You share it the way you share skills: a git repository, a plugin or a zip. The format is in `integrations/portrait-spec/PORTRAIT-FORMAT.md`.
 
 ```
 ~/.agents/portraits/<your first name>/
@@ -34,25 +34,25 @@ You never need to answer anything. The portrait is saved as soon as it is built.
 
 The run ends with where the portrait is, how to take it to each agent (`~/.agents/portraits/<name>/scripts/portrait install claude`, and the same for codex, gemini, cursor, kimi and alma), and the next step: it can become your Agent of You, a version of you others can hire, and it stays on this computer until you choose to publish.
 
-## Act as you: /host:do
+## Act as you: /portrait:do
 
-`/host:do <task>` does a task the way you would. It loads your newest portrait's `PORTRAIT.md` as its operating instructions and reads `examples.md` and `scenarios.md` only when a decision needs them. It also starts when you write `host:do` anywhere in a message, or ask it to "do this as me", "act as me" or "how would I handle this". It never sends, posts, signs in, spends, accepts or deletes anything: anything outward-facing stays a draft for you to send. It ends with one line, `Leaned on: <the rules it used>`. With no portrait yet, it says so and points you to `/host:build`.
+`/portrait:do <task>` does a task the way you would. It loads your newest portrait's `PORTRAIT.md` as its operating instructions and reads `examples.md` and `scenarios.md` only when a decision needs them. It also starts when you write `portrait:do` anywhere in a message, or ask it to "do this as me", "act as me" or "how would I handle this". It never sends, posts, signs in, spends, accepts or deletes anything: anything outward-facing stays a draft for you to send. It ends with one line, `Leaned on: <the rules it used>`. With no portrait yet, it says so and points you to `/portrait:build`.
 
-## Blind test: /host:fidelity
+## Blind test: /portrait:fidelity
 
-`/host:fidelity <cases-folder>` checks how well the portrait predicts you; it runs `scripts/host eval <cases-folder>`. Each case is a folder with `situation.md` (what happened, without your answer) and `answer.md` (what you actually decided, and a one-line reason). For each case, `/host:do` answers the situation from a private folder holding only `situation.md` and allowed to read only the portrait. A separate judge run, with no tools and no portrait, compares that answer with `answer.md`: match, close or wrong, with one line why. `results.md` in the cases folder records the portrait version and dates and the effort of both runs, so scores compare across versions, then the score (match counts 1, close 0.5), a table, and every wrong case written as a candidate scenario for `scenarios.md`. The `/host:do` run still sees what Claude Code loads for every session, such as your global `CLAUDE.md`.
+`/portrait:fidelity <cases-folder>` checks how well the portrait predicts you; it runs `scripts/portrait-agents eval <cases-folder>`. Each case is a folder with `situation.md` (what happened, without your answer) and `answer.md` (what you actually decided, and a one-line reason). For each case, `/portrait:do` answers the situation from a private folder holding only `situation.md` and allowed to read only the portrait. A separate judge run, with no tools and no portrait, compares that answer with `answer.md`: match, close or wrong, with one line why. `results.md` in the cases folder records the portrait version and dates and the effort of both runs, so scores compare across versions, then the score (match counts 1, close 0.5), a table, and every wrong case written as a candidate scenario for `scenarios.md`. The `/portrait:do` run still sees what Claude Code loads for every session, such as your global `CLAUDE.md`.
 
 ## Fidelity, measured for you
 
-You never have to answer anything for the portrait to be calibrated. `/host:build` holds out your newest corrections (20%, at least 5 and at most 20), builds a draft without them, and runs the blind test on them: `Fidelity 71% from 12 recent decisions`. Every miss becomes a rule, then the portrait is rebuilt from all your corrections and scored again on the same decisions: `After those rules: 55% on the same 12 decisions`. That second number says how well the new rules took; the weekly refresh measures new decisions. With fewer than 10 corrections it says so and skips the score. Every score, from a build, the weekly refresh or `/host:fidelity` on your own cases, is a row in the portrait's `fidelity.md` (date, score, cases, portrait version, and the test: before rules, after rules on the same decisions, the weekly forward test, or your own cases), so they compare over time.
+You never have to answer anything for the portrait to be calibrated. `/portrait:build` holds out your newest corrections (20%, at least 5 and at most 20), builds a draft without them, and runs the blind test on them: `Fidelity 71% from 12 recent decisions`. Every miss becomes a rule, then the portrait is rebuilt from all your corrections and scored again on the same decisions: `After those rules: 55% on the same 12 decisions`. That second number says how well the new rules took; the weekly refresh measures new decisions. With fewer than 10 corrections it says so and skips the score. Every score, from a build, the weekly refresh or `/portrait:fidelity` on your own cases, is a row in the portrait's `fidelity.md` (date, score, cases, portrait version, and the test: before rules, after rules on the same decisions, the weekly forward test, or your own cases), so they compare over time.
 
 ## The weekly refresh
 
-At the end of `/host:build`, a weekly refresh is turned on (launchd on macOS, Mondays at 10:00; a week the computer is off is skipped). It reads only the corrections since the last run, scores the current portrait on them first (a forward test it has not seen), then folds them in and saves a new version in `versions/`. It runs Claude Code headless at medium effort, about 10 cases a week, never asks anything, never runs twice at once, and logs to the portrait's `logs/` folder. Stop it with `~/.agents/portraits/<name>/scripts/host schedule off`. On Linux and Windows, `schedule on` prints a line to add to cron or the task scheduler.
+At the end of `/portrait:build`, a weekly refresh is turned on (launchd on macOS, Mondays at 10:00; a week the computer is off is skipped). It reads only the corrections since the last run, scores the current portrait on them first (a forward test it has not seen), then folds them in and saves a new version in `versions/`. It runs Claude Code headless at medium effort, about 10 cases a week, never asks anything, never runs twice at once, and logs to the portrait's `logs/` folder. Stop it with `~/.agents/portraits/<name>/scripts/portrait-agents schedule off`. On Linux and Windows, `schedule on` prints a line to add to cron or the task scheduler.
 
 ## How hard each agent thinks
 
-Effort is set to keep token use moderate. `/host:build` runs at high effort, and so do its helpers where the agent has a setting: Claude `--effort high`, Codex `model_reasoning_effort=high`. Gemini, Cursor, Kimi and Alma have no run-level effort setting, so they run at their default (Kimi's effort is set in its own config, which is never edited). The progress line shows it, such as `Codex: reading (high)...`. A run that fails at high effort tries once more at default and says so. `/host:do`, the blind test (both its runs) and the weekly refresh use medium effort. A helper run stops after 15 minutes at high effort or 10 at default; `HOST_AGENT_TIMEOUT` overrides both, up to 20 minutes.
+Effort is set to keep token use moderate. `/portrait:build` runs at high effort, and so do its helpers where the agent has a setting: Claude `--effort high`, Codex `model_reasoning_effort=high`. Gemini, Cursor, Kimi and Alma have no run-level effort setting, so they run at their default (Kimi's effort is set in its own config, which is never edited). The progress line shows it, such as `Codex: reading (high)...`. A run that fails at high effort tries once more at default and says so. `/portrait:do`, the blind test (both its runs) and the weekly refresh use medium effort. A helper run stops after 15 minutes at high effort or 10 at default; `PORTRAIT_AGENT_TIMEOUT` overrides both, up to 20 minutes.
 
 ## Your other agents
 
@@ -68,12 +68,12 @@ The helpers only draft. They run read-only and headless, stop after 10 minutes, 
 
 What helping adds to your computer, so you can see and remove it. The last message of every run lists these files in one line, `Helpers added to: ...`:
 
-| Agent | Written by `host install` | Removed by `host uninstall` |
+| Agent | Written by `portrait-agents install` | Removed by `portrait-agents uninstall` |
 |---|---|---|
-| Claude (when another agent leads) | `~/.claude/skills/host-helper/SKILL.md` | the same file |
-| Codex, Gemini, Kimi | `~/.agents/skills/host-helper/SKILL.md`, one file the three share | the same file |
-| Cursor | `~/.cursor/skills/host-helper/SKILL.md` | the same file |
-| Alma | the skill `host-helper` in Alma's own skill list (`alma skill create`) | `alma skill uninstall host-helper` |
+| Claude (when another agent leads) | `~/.claude/skills/portrait-helper/SKILL.md` | the same file |
+| Codex, Gemini, Kimi | `~/.agents/skills/portrait-helper/SKILL.md`, one file the three share | the same file |
+| Cursor | `~/.cursor/skills/portrait-helper/SKILL.md` | the same file |
+| Alma | the skill `portrait-helper` in Alma's own skill list (`alma skill create`) | `alma skill uninstall portrait-helper` |
 
 Each run also uses a private temporary folder, which is deleted when the run ends. The helpers' drafts live in a private working folder, removed once the portrait is saved.
 
@@ -85,13 +85,13 @@ In Claude Code:
 
 ```
 /plugin marketplace add yubozhao/host
-/plugin install host@host
+/plugin install portrait@host
 ```
 
 Then run:
 
 ```
-/host:build
+/portrait:build
 ```
 
 ## What it reads and where it goes
@@ -113,17 +113,17 @@ claude --plugin-dir "$PWD/integrations/claude-code-plugin"
 Then, in Claude Code:
 
 ```
-/host:build
+/portrait:build
 ```
 
 Or install it through the local marketplace (the `.claude-plugin/marketplace.json` at the repository root). In Claude Code:
 
 ```
 /plugin marketplace add /path/to/your/checkout
-/plugin install host@host
+/plugin install portrait@host
 ```
 
-Remove it again with `/plugin uninstall host@host` and `/plugin marketplace remove host`.
+Remove it again with `/plugin uninstall portrait@host` and `/plugin marketplace remove host`.
 
 Check the plugin:
 
@@ -136,19 +136,19 @@ The full test suite (stub agent CLIs and a temporary home folder, so it never to
 ## How it is built
 
 - `.claude-plugin/plugin.json`: the plugin manifest.
-- `skills/build/SKILL.md`: the lead, the `/host:build` steps. It is allowed to read files without asking (`Read`, `Glob`, `Grep`). Running the script and saving ask you, as usual.
-- `scripts/host`: the shared lead logic (`scripts/host` is its older name, kept as an alias for one version). It finds, installs, runs and removes the helpers, searches each agent's history for your own typed corrections, checks the drafts (shape, sources, privacy), bundles them for the lead, and saves the portrait folder. It is POSIX `sh` and `awk`, with no other runtime (it uses `zstdcat` for Codex's compressed logs when it is installed).
-- `skills/do/SKILL.md`: `/host:do`, rendered from `integrations/portrait-spec/do.md`.
-- `skills/fidelity/SKILL.md`: `/host:fidelity`, rendered from `integrations/portrait-spec/fidelity.md`.
+- `skills/build/SKILL.md`: the lead, the `/portrait:build` steps. It is allowed to read files without asking (`Read`, `Glob`, `Grep`). Running the script and saving ask you, as usual.
+- `scripts/portrait-agents`: the shared lead logic (`scripts/portrait-agents` is its older name, kept as an alias for one version). It finds, installs, runs and removes the helpers, searches each agent's history for your own typed corrections, checks the drafts (shape, sources, privacy), bundles them for the lead, and saves the portrait folder. It is POSIX `sh` and `awk`, with no other runtime (it uses `zstdcat` for Codex's compressed logs when it is installed).
+- `skills/do/SKILL.md`: `/portrait:do`, rendered from `integrations/portrait-spec/do.md`.
+- `skills/fidelity/SKILL.md`: `/portrait:fidelity`, rendered from `integrations/portrait-spec/fidelity.md`.
 - `scripts/portrait`: the tool that travels inside every portrait folder: `check`, `install <agent>` and `uninstall <agent>`, `snapshot`, and `verdict <n> right|wrong [reason]`.
-- `helpers/host-helper/SKILL.md`: the helper that the other agents run.
+- `helpers/portrait-helper/SKILL.md`: the helper that the other agents run.
 - `portrait.vars`: this platform's values for the shared lead steps (its name, id and script path).
 - Everything shared lives once in `integrations/portrait-spec/`:
   - `spec.md`: the portrait format, the privacy rules and where each agent's memory is.
   - `lead.md`: the lead steps, including the merge rules.
   - `helper.md`: the helper.
   - `do.md` and `fidelity.md`: the do and fidelity skills.
-  - `host` and `portrait`: the scripts.
+  - `portrait-agents` and `portrait`: the scripts.
   - `PORTRAIT-FORMAT.md`: the portrait folder format, for other tools.
   `sync.sh` copies them into every platform's package. A test fails when a copy drifts, and checks that every package can lead.
 - The plugin has no MCP server and needs no other app.

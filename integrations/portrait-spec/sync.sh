@@ -1,14 +1,14 @@
 #!/bin/sh
 # Copies the canonical portrait files into every platform package: the
-# shared scripts (host and portrait), the helper skill, and the build, do and
+# shared scripts (portrait-agents and portrait), the helper skill, and the build, do and
 # fidelity skills. Run it after editing anything in this folder;
 # portrait_agents_test.go fails when a package copy drifts.
 #
 # A package is a folder with a portrait.vars file (KEY=value lines: LEAD,
 # LEAD_ID, SCRIPT, PORTRAIT_COMMAND, AS_ME_COMMAND, FIDELITY_COMMAND). Each
 # skill keeps its own frontmatter and gets lead.md, do.md or fidelity.md,
-# rendered with those values, between its host-build, host-do or
-# host-fidelity markers. Every package can lead and carries the helper.
+# rendered with those values, between its portrait-build, portrait-do or
+# portrait-fidelity markers. Every package can lead and carries the helper.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
@@ -45,16 +45,13 @@ fill() {
 
 for vars in "$root"/*/portrait.vars; do
 	package=$(dirname "$vars")
-	mkdir -p "$package/scripts" "$package/helpers/host-helper"
-	cp "$here/host" "$package/scripts/host"
-	chmod 755 "$package/scripts/host"
-	# The older name, kept as an alias for one version.
-	printf '#!/bin/sh\n# isoform-agents: the older name of host, kept as an alias for one version.\nexec "$(dirname "$0")/host" "$@"\n' > "$package/scripts/isoform-agents"
-	chmod 755 "$package/scripts/isoform-agents"
+	mkdir -p "$package/scripts" "$package/helpers/portrait-helper"
+	cp "$here/portrait-agents" "$package/scripts/portrait-agents"
+	chmod 755 "$package/scripts/portrait-agents"
 	cp "$here/portrait" "$package/scripts/portrait"
 	chmod 755 "$package/scripts/portrait"
-	render "$here/helper.md" "$vars" > "$package/helpers/host-helper/SKILL.md"
-	fill "$package/skills/build/SKILL.md" host-build "$here/lead.md" "$vars"
-	fill "$package/skills/do/SKILL.md" host-do "$here/do.md" "$vars"
-	fill "$package/skills/fidelity/SKILL.md" host-fidelity "$here/fidelity.md" "$vars"
+	render "$here/helper.md" "$vars" > "$package/helpers/portrait-helper/SKILL.md"
+	fill "$package/skills/build/SKILL.md" portrait-build "$here/lead.md" "$vars"
+	fill "$package/skills/do/SKILL.md" portrait-do "$here/do.md" "$vars"
+	fill "$package/skills/fidelity/SKILL.md" portrait-fidelity "$here/fidelity.md" "$vars"
 done

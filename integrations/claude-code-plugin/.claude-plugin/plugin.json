@@ -1,9 +1,9 @@
 {
-  "name": "host",
-  "version": "0.8.1",
+  "name": "portrait",
+  "version": "0.9.0",
   "description": "Build your portrait: a folder, like a skill, that lets any AI agent act the way you would, drawn from the memory and corrections of Claude and your other AI agents.",
   "author": {
-    "name": "host",
+    "name": "portrait",
     "url": "https://github.com/yubozhao/host"
   },
   "homepage": "https://github.com/yubozhao/host",

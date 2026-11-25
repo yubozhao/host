@@ -1,4 +1,4 @@
-# host
+# portrait
 
 Your AI agents already know a lot about how you work: your rules, your memory files, and every time you told one "no, do it this way instead". A portrait gathers that into one folder that lets any AI agent act as your agentic self, deciding, working and communicating the way you would.
 
@@ -10,17 +10,17 @@ In Claude Code:
 
 ```
 /plugin marketplace add yubozhao/host
-/plugin install host@host
+/plugin install portrait@host
 ```
 
 ## Commands
 
-- `/host:build` builds your portrait and saves it at once; you never have to answer anything. Claude drafts from its own memory and history. If Codex, Gemini, Cursor, Kimi or Alma are on your computer, each one drafts its own part from its own memory, read-only, and Claude merges the parts. It ends with a few optional scenarios you can mark right or wrong, and the command to take the portrait to each agent.
-- `/host:do <task>` does a task the way you would, from your portrait. Anything outward-facing, such as a message, an email or a post, stays a draft for you to send. It never sends, signs in, spends, accepts or deletes anything, and it ends with the rules it leaned on.
+- `/portrait:build` builds your portrait and saves it at once; you never have to answer anything. Claude drafts from its own memory and history. If Codex, Gemini, Cursor, Kimi or Alma are on your computer, each one drafts its own part from its own memory, read-only, and Claude merges the parts. It ends with a few optional scenarios you can mark right or wrong, and the command to take the portrait to each agent.
+- `/portrait:do <task>` does a task the way you would, from your portrait. Anything outward-facing, such as a message, an email or a post, stays a draft for you to send. It never sends, signs in, spends, accepts or deletes anything, and it ends with the rules it leaned on.
 
-- `/host:fidelity <cases-folder>` measures how well the portrait predicts you: a blind test on cases you write (what happened, and what you actually decided), scored by a separate judge that never sees the portrait.
+- `/portrait:fidelity <cases-folder>` measures how well the portrait predicts you: a blind test on cases you write (what happened, and what you actually decided), scored by a separate judge that never sees the portrait.
 
-`/host:build` also measures itself: it holds out your newest corrections, builds without them, and reports how often the portrait decided as you did, such as `Fidelity 71% from 12 recent decisions`. Then a weekly refresh keeps it current: it scores the portrait on your new corrections first, then folds them in. Stop it any time with `~/.agents/portraits/<name>/scripts/host schedule off`.
+`/portrait:build` also measures itself: it holds out your newest corrections, builds without them, and reports how often the portrait decided as you did, such as `Fidelity 71% from 12 recent decisions`. Then a weekly refresh keeps it current: it scores the portrait on your new corrections first, then folds them in. Stop it any time with `~/.agents/portraits/<name>/scripts/portrait-agents schedule off`.
 
 ## What it reads and writes
 
@@ -40,7 +40,7 @@ Each agent's part is made by that agent, so its memory goes to its own company, 
 The helpers stay for next time unless you remove them. Each run prints where it put them. To remove one, run the plugin's script with the agent's name, for example:
 
 ```
-~/.claude/plugins/cache/host/host/<version>/scripts/host uninstall codex
+~/.claude/plugins/cache/host/portrait/<version>/scripts/portrait-agents uninstall codex
 ```
 
 `<version>` is the installed plugin version, such as `0.6.0`. The agents are `claude`, `codex`, `gemini`, `cursor`, `kimi` and `alma`. The last message of a portrait run shows the exact command for your computer.

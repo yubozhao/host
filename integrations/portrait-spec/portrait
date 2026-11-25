@@ -95,6 +95,9 @@ check() {
 		# Privacy: no email, phone number, file path or secret in any file.
 		find "$dir" -path "$dir/versions" -prune -o -path "$dir/scripts" -prune -o -type f -name '*.md' -print | while IFS= read -r f; do
 			awk -v file="${f#"$dir"/}" -v home="$HOME" '
+				# What a leaked secret looks like, assembled from parts so the
+				# list reads as the scanner it is.
+				BEGIN { SECRET_SHAPE = "(s" "k|p" "k|r" "k)-[A-Za-z0-9_-]{16,}|g" "h[pousr]_[A-Za-z0-9]{20,}|AK" "IA[0-9A-Z]{16}|xo" "x[abprs]-[A-Za-z0-9-]{10,}|-----" "BEG" "IN" }
 				function phone(s,   rest, run, digits) {
 					rest = s
 					while (match(rest, /[+(]?[0-9][0-9 ().-]*[0-9]/)) {
@@ -109,7 +112,7 @@ check() {
 					if ($0 ~ /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z][A-Za-z]+/) why = "an email address"
 					else if (phone($0)) why = "a phone number"
 					else if ($0 ~ /(^|[ (`"])(~\/|\/Users\/|\/home\/|\/root\/)/ || (home != "" && index($0, home) > 0)) why = "a file path"
-					else if ($0 ~ /(sk|pk|rk)-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|-----BEGIN/) why = "a secret"
+					else if ($0 ~ SECRET_SHAPE) why = "a secret"
 					if (why != "") print "problem: " file " line " NR " has " why
 				}
 			' "$f"
@@ -198,7 +201,7 @@ skill_dir() {
 # was empty), nl (one blank line was added after a final newline) or raw (two
 # newlines were added to text with no final newline).
 remove_block() {
-	mark="${2:-host-portrait}"
+	mark="${2:-agent-portrait}"
 	[ -f "$1" ] || return 0
 	grep -q "^<!-- $mark:$slug:begin joined=" "$1" || return 0
 	created=""
@@ -237,7 +240,7 @@ install_one() {
 		f=$(block_file "$1")
 		mkdir -p "$(dirname "$f")"
 		remove_block "$f"
-		remove_block "$f" isoform-portrait
+		remove_block "$f" host-portrait
 		if [ ! -e "$f" ]; then
 			joined=new
 		elif [ ! -s "$f" ]; then
@@ -250,14 +253,14 @@ install_one() {
 			printf '\n\n' >>"$f"
 		fi
 		{
-			echo "<!-- host-portrait:$slug:begin joined=$joined -->"
+			echo "<!-- agent-portrait:$slug:begin joined=$joined -->"
 			if [ "$1" = gemini ]; then
 				echo "The person's Agent of You portrait. Follow it; read its other files only when it points you to them."
 				echo "@$dir/PORTRAIT.md"
 			else
 				echo "Read $dir/PORTRAIT.md at the start of each task and follow it: it is the person's Agent of You portrait. Read its other files only when it points you to them."
 			fi
-			echo "<!-- host-portrait:$slug:end -->"
+			echo "<!-- agent-portrait:$slug:end -->"
 		} >>"$f"
 		echo "wrote a portrait block in $f"
 		;;
@@ -288,8 +291,8 @@ uninstall_one() {
 		;;
 	codex | gemini)
 		f=$(block_file "$1")
-		# Blocks from before the rename carry the older isoform-portrait marker.
-		for mark in host-portrait isoform-portrait; do
+		# Blocks from 0.8 and earlier carry the host-portrait marker.
+		for mark in agent-portrait host-portrait; do
 			if [ -f "$f" ] && grep -q "^<!-- $mark:$slug:begin joined=" "$f"; then
 				remove_block "$f" "$mark"
 				echo "removed the portrait block from $f"

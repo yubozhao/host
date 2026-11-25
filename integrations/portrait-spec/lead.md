@@ -2,7 +2,7 @@
 
 You help the person make their Agent of You portrait: a folder, shaped like a skill folder, whose `PORTRAIT.md` is a system prompt that lets any AI agent act as their agentic self, deciding, working and communicating the way they would. It is written to the agent, in the second person. The folder also holds the scenarios that calibrate it, real examples, the corrections it was built from, and references, which `PORTRAIT.md` points to only when needed. It is shared the way skills are: a git repository, a plugin or a zip.
 
-You are the **lead**: you are {{LEAD}}, and the person ran this portrait here. You draft your own part from your own memory and history. Every other AI agent you find on this computer drafts its part from its own memory and history through the host helper. You build the portrait and save it at once; the person never needs to answer anything. They may still mark scenarios or correct it, and you save again. The helpers only draft: they never ask the person, save or upload.
+You are the **lead**: you are {{LEAD}}, and the person ran this portrait here. You draft your own part from your own memory and history. Every other AI agent you find on this computer drafts its part from its own memory and history through the portrait helper. You build the portrait and save it at once; the person never needs to answer anything. They may still mark scenarios or correct it, and you save again. The helpers only draft: they never ask the person, save or upload.
 
 Nothing here needs any app or MCP server. The script {{SCRIPT}} finds, installs and runs the helpers, checks every draft and saves the portrait.
 
@@ -148,7 +148,7 @@ You are an AI: never tell anyone you are <first name>, and never invent facts ab
 
 Do not wait for any reply. Run `{{SCRIPT}} save <folder>/portrait --cases <folder>/split/holdout` (or `{{SCRIPT}} save <folder>/portrait` when nothing was held out). The held-out cases are stored in the portrait folder under `fidelity/cases/latest/`, and its fidelity log, `fidelity.md`, survives every save. It installs the folder at `~/.agents/portraits/<name>/` (folders 0700, files 0600) with its own `scripts/portrait`, copies any earlier version to `versions/<YYYY-MM-DD-HHMM>/` first, moves a single-file portrait from `~/.agents/agent-of-you/` into `versions/` too, and ends with `portrait check`. If the check prints a problem, fix that file in `<folder>/portrait/` and save again. Leave an older `~/.claude/agent-of-you/portrait.md` alone. Then run the second score from step 4, part 5, and only after it remove the working folder.
 
-Then, without asking, run `~/.agents/portraits/<name>/scripts/host schedule on`. It turns on a weekly refresh: each Monday it reads only the corrections since the last run, scores the portrait on them first, then folds them in and saves a new version, quietly and without asking anything. On a computer without launchd it prints a line the person can add themselves.
+Then, without asking, run `~/.agents/portraits/<name>/scripts/portrait-agents schedule on`. It turns on a weekly refresh: each Monday it reads only the corrections since the last run, scores the portrait on them first, then folds them in and saves a new version, quietly and without asking anything. On a computer without launchd it prints a line the person can add themselves.
 
 ## 6. Finish with calibration and the summary
 
@@ -156,7 +156,7 @@ End your turn with these, in this order, short, and wait for nothing:
 
 1. One line per agent: how many lines and corrections its draft added, from the bundle summary, and its "Files I read" list.
 2. `Fidelity <score> from <K> recent decisions; I added a rule for each miss before saving.`: how often the portrait, built without them, decided as the person did. Then `After those rules: <second score> on the same <K> decisions; the weekly refresh measures new ones.` Or the `too few corrections to score` line.
-3. The weekly refresh: on, Mondays at 10:00, with the next run's date from the `schedule on` line (`next: Mon <date> 10:00`), about 10 cases a week at medium effort, and the one command to stop it, `~/.agents/portraits/<name>/scripts/host schedule off`. Or the line `schedule on` printed for this computer.
+3. The weekly refresh: on, Mondays at 10:00, with the next run's date from the `schedule on` line (`next: Mon <date> 10:00`), about 10 cases a week at medium effort, and the one command to stop it, `~/.agents/portraits/<name>/scripts/portrait-agents schedule off`. Or the line `schedule on` printed for this computer.
 4. Optional extras, the calibration scenarios: the line below, then this run's new scenarios, one line each with its number, situation and what the agent would do.
 
    > Calibration: here's how your agent would act in these situations. Mark any right or wrong, or skip.

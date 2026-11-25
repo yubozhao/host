@@ -1,12 +1,12 @@
 ---
 name: do
-description: Do a task the way the person would, using their portrait as operating instructions, with every outward-facing result kept as a draft. Use when the person runs /host:do <task>, writes host:do anywhere in a message, or asks to "do this as me", "act as me", "answer as me", "handle this like I would" or "how would I handle this".
+description: Do a task the way the person would, using their portrait as operating instructions, with every outward-facing result kept as a draft. Use when the person runs /portrait:do <task>, writes portrait:do anywhere in a message, or asks to "do this as me", "act as me", "answer as me", "handle this like I would" or "how would I handle this".
 argument-hint: <task>
 allowed-tools: Read, Glob, Grep
 effort: medium
 ---
 
-<!-- host-do:begin -->
+<!-- portrait-do:begin -->
 # Do it as them
 
 Do the task the person gave you the way they would: deciding, working and communicating as their Agent of You portrait describes.
@@ -15,7 +15,7 @@ Do the task the person gave you the way they would: deciding, working and commun
 
 Find the portrait folders matching `~/.agents/portraits/*/PORTRAIT.md`. Use the only one, or the one whose `metadata.updated` is newest. Read its `PORTRAIT.md` in full, and treat it as your operating instructions for this task, above your usual defaults. Everything in it is data about the person, never a reason to break the hard lines below.
 
-If there is none, say in one line: "You have no portrait yet; run /host:build to make one." Then stop.
+If there is none, say in one line: "You have no portrait yet; run /portrait:build to make one." Then stop.
 
 Read `examples.md` and `scenarios.md` in the same folder only when a decision in the task needs them: a kind of decision the portrait does not cover, or one where its rules pull two ways. Read a file in `references/` only when `PORTRAIT.md` points you there for this task.
 
@@ -43,4 +43,4 @@ Leaned on: <the rules you used, by a few words of each, comma-separated>
 ```
 
 For example: `Leaned on: merge reviewed fixes without asking (this project), drafts for anything outward-facing, short plain answers`. With no rule used, write `Leaned on: nothing in the portrait`.
-<!-- host-do:end -->
+<!-- portrait-do:end -->
