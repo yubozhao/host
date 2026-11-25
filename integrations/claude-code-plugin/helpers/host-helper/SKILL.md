@@ -64,10 +64,10 @@ Corrections are the most important part of the draft: the moments the person ove
 
 **Where the candidates come from.** For Claude, Codex and Gemini, `host history` has already searched your history for you: the person's own typed messages from the last 60 days with words such as "no", "instead", "don't", "stop", "why did you", "not that" or "I said", newest first, each with a short clip of your turn before it. Read only that list; never open your history logs yourself. For any other agent, look in your own past chats only if you can read them, by the same rules: newest first, only the last 60 days, search first and then read only about 20 lines around each hit, never a whole log, and stop at 30 corrections or after 4 minutes of searching.
 
-A candidate is not always a correction ("no problem" is not one). Take at most 30 real ones, newest first, one per line, in this shape:
+Give each correction its candidate's date as `When:`; leave it out only when the date is unknown. A candidate is not always a correction ("no problem" is not one). Take at most 30 real ones, newest first, one per line, in this shape:
 
 ```
-- Situation: <what was going on>. Did: <what the agent did>. Wanted: <what the person wanted instead>. Reason: <their reason, if they gave one>. [<source>]
+- When: <YYYY-MM-DD, the candidate's date>. Situation: <what was going on>. Did: <what the agent did>. Wanted: <what the person wanted instead>. Reason: <their reason, if they gave one>. [<source>]
 ```
 
 Write the situation, what the agent did and what they wanted in your own words. Quote nothing from history beyond, at most, a few of the person's own words from the correction itself: no tool output, no file contents, and no one else's words. Leave out names and paths, and leave out a correction you cannot place. With none found, print the heading with nothing under it.

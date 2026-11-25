@@ -20,11 +20,14 @@ In Claude Code:
 
 - `/host:fidelity <cases-folder>` measures how well the portrait predicts you: a blind test on cases you write (what happened, and what you actually decided), scored by a separate judge that never sees the portrait.
 
+`/host:build` also measures itself: it holds out your newest corrections, builds without them, and reports how often the portrait decided as you did, such as `Fidelity 71% from 12 recent decisions`. Then a weekly refresh keeps it current: it scores the portrait on your new corrections first, then folds them in. Stop it any time with `~/.agents/portraits/<name>/scripts/host schedule off`.
+
 ## What it reads and writes
 
 - **Reads**, read-only: each agent's own memory and instructions files, and the messages you typed yourself in its recent history (the last 60 days), to find the times you corrected it. Tool output, system messages, pasted text and other agents' messages never count.
 - **Leaves out** email addresses, phone numbers, file paths, secrets, other people's names and private details, and health, money and relationships. A script checks every agent's draft for these before it is used.
-- **Writes** your portrait to `~/.agents/portraits/<your first name>/`, a private folder. Every earlier version is kept under `versions/`.
+- **Writes** your portrait to `~/.agents/portraits/<your first name>/`, a private folder. Every earlier version is kept under `versions/`, and every fidelity score in `fidelity.md`.
+- **Schedules** the weekly refresh (on macOS, a LaunchAgent in `~/Library/LaunchAgents/`), which `schedule off` removes.
 - **Adds** a small helper skill for each other agent it asks, listed at the end of every run.
 - **Changes nothing else.** To take the portrait to an agent, you run `~/.agents/portraits/<name>/scripts/portrait install <agent>` yourself; `uninstall` removes exactly what it added.
 
@@ -40,7 +43,7 @@ The helpers stay for next time unless you remove them. Each run prints where it 
 ~/.claude/plugins/cache/host/host/<version>/scripts/host uninstall codex
 ```
 
-`<version>` is the installed plugin version, such as `0.7.0`. The agents are `claude`, `codex`, `gemini`, `cursor`, `kimi` and `alma`. The last message of a portrait run shows the exact command for your computer.
+`<version>` is the installed plugin version, such as `0.6.0`. The agents are `claude`, `codex`, `gemini`, `cursor`, `kimi` and `alma`. The last message of a portrait run shows the exact command for your computer.
 
 ## The format
 

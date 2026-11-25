@@ -42,9 +42,17 @@ The run ends with where the portrait is, how to take it to each agent (`~/.agent
 
 `/host:fidelity <cases-folder>` checks how well the portrait predicts you; it runs `scripts/host eval <cases-folder>`. Each case is a folder with `situation.md` (what happened, without your answer) and `answer.md` (what you actually decided, and a one-line reason). For each case, `/host:do` answers the situation from a private folder holding only `situation.md` and allowed to read only the portrait. A separate judge run, with no tools and no portrait, compares that answer with `answer.md`: match, close or wrong, with one line why. `results.md` in the cases folder records the portrait version and dates and the effort of both runs, so scores compare across versions, then the score (match counts 1, close 0.5), a table, and every wrong case written as a candidate scenario for `scenarios.md`. The `/host:do` run still sees what Claude Code loads for every session, such as your global `CLAUDE.md`.
 
+## Fidelity, measured for you
+
+You never have to answer anything for the portrait to be calibrated. `/host:build` holds out your newest corrections (20%, at least 5 and at most 20), builds a draft without them, and runs the blind test on them: `Fidelity 71% from 12 recent decisions`. Every miss becomes a rule, then the portrait is rebuilt from all your corrections. With fewer than 10 corrections it says so and skips the score. Every score, from a build, the weekly refresh or `/host:fidelity` on your own cases, is a row in the portrait's `fidelity.md` (date, score, cases, portrait version, kind of test), so they compare over time.
+
+## The weekly refresh
+
+At the end of `/host:build`, a weekly refresh is turned on (launchd on macOS, Mondays at 10:00; a week the computer is off is skipped). It reads only the corrections since the last run, scores the current portrait on them first (a forward test it has not seen), then folds them in and saves a new version in `versions/`. It runs Claude Code headless at medium effort, about 10 cases a week, never asks anything, never runs twice at once, and logs to the portrait's `logs/` folder. Stop it with `~/.agents/portraits/<name>/scripts/host schedule off`. On Linux and Windows, `schedule on` prints a line to add to cron or the task scheduler.
+
 ## How hard each agent thinks
 
-Effort is set to keep token use moderate. `/host:build` runs at high effort, and so do its helpers where the agent has a setting: Claude `--effort high`, Codex `model_reasoning_effort=high`. Gemini, Cursor, Kimi and Alma have no run-level effort setting, so they run at their default (Kimi's effort is set in its own config, which is never edited). The progress line shows it, such as `Codex: reading (high)...`. A run that fails at high effort tries once more at default and says so. `/host:do` and the blind test (both its runs) use medium effort. A helper run stops after 15 minutes at high effort or 10 at default; `HOST_AGENT_TIMEOUT` overrides both, up to 20 minutes.
+Effort is set to keep token use moderate. `/host:build` runs at high effort, and so do its helpers where the agent has a setting: Claude `--effort high`, Codex `model_reasoning_effort=high`. Gemini, Cursor, Kimi and Alma have no run-level effort setting, so they run at their default (Kimi's effort is set in its own config, which is never edited). The progress line shows it, such as `Codex: reading (high)...`. A run that fails at high effort tries once more at default and says so. `/host:do`, the blind test (both its runs) and the weekly refresh use medium effort. A helper run stops after 15 minutes at high effort or 10 at default; `HOST_AGENT_TIMEOUT` overrides both, up to 20 minutes.
 
 ## Your other agents
 
