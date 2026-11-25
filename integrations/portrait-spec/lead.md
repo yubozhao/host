@@ -52,9 +52,10 @@ The script passes only lines under the draft headings that end with a source, an
 **Hold out the newest decisions, to measure the portrait.** Run `{{SCRIPT}} split <folder>/bundle.md <folder>/split`. It sets aside the newest 20% of the corrections (no fewer than 5 and no more than 20) as blind-test cases in `<folder>/split/holdout/`, and writes `<folder>/split/bundle-train.md` without them. Do not read anything in `holdout/` before step 3 below. If it prints `too few corrections to score (N)`, note that line for the summary and build once, from `bundle.md`, by the rules below. Otherwise build in passes:
 
 1. Build the portrait by the rules below from `<folder>/split/bundle-train.md` only, into `<folder>/portrait/`.
-2. Run `{{SCRIPT}} eval <folder>/split/holdout --portrait <folder>/portrait --kind "build holdout" --log ~/.agents/portraits/<name>/fidelity.md`. It answers each held-out situation from that draft alone and scores it against what the person did. Note its score and case count for the summary: `Fidelity <score> from <K> recent decisions`.
+2. Run `{{SCRIPT}} eval <folder>/split/holdout --portrait <folder>/portrait --kind "build, before rules" --log ~/.agents/portraits/<name>/fidelity.md`. It answers each held-out situation from that draft alone and scores it against what the person did. Note its score and case count for the summary: `Fidelity <score> from <K> recent decisions`.
 3. Read `<folder>/split/holdout/results.md`. For every case that is not a match, add a rule to "How you decide" or "When to act and when to ask" that would have decided it as the person did, sourced `<!-- missed in calibration -->`.
 4. Rebuild the portrait from the full `<folder>/bundle.md`, with those rules. This is the portrait you save.
+5. After saving it (step 5), run `{{SCRIPT}} eval <folder>/split/holdout --portrait ~/.agents/portraits/<name> --kind "after rules, same decisions"` on the same cases, before you remove the working folder. Note this second score for the summary: these are the decisions the new rules came from, so it says how well the rules took, not how the portrait does on new decisions; the weekly refresh measures those.
 
 Build by these rules:
 
@@ -145,7 +146,7 @@ You are an AI: never tell anyone you are <first name>, and never invent facts ab
 
 ## 5. Save it at once
 
-Do not wait for any reply. Run `{{SCRIPT}} save <folder>/portrait --cases <folder>/split/holdout` (or `{{SCRIPT}} save <folder>/portrait` when nothing was held out). The held-out cases are stored in the portrait folder under `fidelity/cases/latest/`, and its fidelity log, `fidelity.md`, survives every save. It installs the folder at `~/.agents/portraits/<name>/` (folders 0700, files 0600) with its own `scripts/portrait`, copies any earlier version to `versions/<YYYY-MM-DD-HHMM>/` first, moves a single-file portrait from `~/.agents/agent-of-you/` into `versions/` too, and ends with `portrait check`. If the check prints a problem, fix that file in `<folder>/portrait/` and save again. Leave an older `~/.claude/agent-of-you/portrait.md` alone. Remove the working folder.
+Do not wait for any reply. Run `{{SCRIPT}} save <folder>/portrait --cases <folder>/split/holdout` (or `{{SCRIPT}} save <folder>/portrait` when nothing was held out). The held-out cases are stored in the portrait folder under `fidelity/cases/latest/`, and its fidelity log, `fidelity.md`, survives every save. It installs the folder at `~/.agents/portraits/<name>/` (folders 0700, files 0600) with its own `scripts/portrait`, copies any earlier version to `versions/<YYYY-MM-DD-HHMM>/` first, moves a single-file portrait from `~/.agents/agent-of-you/` into `versions/` too, and ends with `portrait check`. If the check prints a problem, fix that file in `<folder>/portrait/` and save again. Leave an older `~/.claude/agent-of-you/portrait.md` alone. Then run the second score from step 4, part 5, and only after it remove the working folder.
 
 Then, without asking, run `~/.agents/portraits/<name>/scripts/host schedule on`. It turns on a weekly refresh: each Monday it reads only the corrections since the last run, scores the portrait on them first, then folds them in and saves a new version, quietly and without asking anything. On a computer without launchd it prints a line the person can add themselves.
 
@@ -154,7 +155,7 @@ Then, without asking, run `~/.agents/portraits/<name>/scripts/host schedule on`.
 End your turn with these, in this order, short, and wait for nothing:
 
 1. One line per agent: how many lines and corrections its draft added, from the bundle summary, and its "Files I read" list.
-2. `Fidelity <score> from <K> recent decisions`: how often the portrait, built without them, decided as the person did. Or the `too few corrections to score` line.
+2. `Fidelity <score> from <K> recent decisions; I added a rule for each miss before saving.`: how often the portrait, built without them, decided as the person did. Then `After those rules: <second score> on the same <K> decisions; the weekly refresh measures new ones.` Or the `too few corrections to score` line.
 3. The weekly refresh: on, Mondays at 10:00, with the next run's date from the `schedule on` line (`next: Mon <date> 10:00`), about 10 cases a week at medium effort, and the one command to stop it, `~/.agents/portraits/<name>/scripts/host schedule off`. Or the line `schedule on` printed for this computer.
 4. Optional extras, the calibration scenarios: the line below, then this run's new scenarios, one line each with its number, situation and what the agent would do.
 

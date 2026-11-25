@@ -44,7 +44,7 @@ The run ends with where the portrait is, how to take it to each agent (`~/.agent
 
 ## Fidelity, measured for you
 
-You never have to answer anything for the portrait to be calibrated. `/host:build` holds out your newest corrections (20%, at least 5 and at most 20), builds a draft without them, and runs the blind test on them: `Fidelity 71% from 12 recent decisions`. Every miss becomes a rule, then the portrait is rebuilt from all your corrections. With fewer than 10 corrections it says so and skips the score. Every score, from a build, the weekly refresh or `/host:fidelity` on your own cases, is a row in the portrait's `fidelity.md` (date, score, cases, portrait version, kind of test), so they compare over time.
+You never have to answer anything for the portrait to be calibrated. `/host:build` holds out your newest corrections (20%, at least 5 and at most 20), builds a draft without them, and runs the blind test on them: `Fidelity 71% from 12 recent decisions`. Every miss becomes a rule, then the portrait is rebuilt from all your corrections and scored again on the same decisions: `After those rules: 55% on the same 12 decisions`. That second number says how well the new rules took; the weekly refresh measures new decisions. With fewer than 10 corrections it says so and skips the score. Every score, from a build, the weekly refresh or `/host:fidelity` on your own cases, is a row in the portrait's `fidelity.md` (date, score, cases, portrait version, and the test: before rules, after rules on the same decisions, the weekly forward test, or your own cases), so they compare over time.
 
 ## The weekly refresh
 

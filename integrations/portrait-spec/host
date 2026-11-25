@@ -711,18 +711,21 @@ $(cat "$c/situation.md")"
 			# never the portrait, and has no tools.
 			bench="$scratch/judge-$total"
 			mkdir -p "$bench"
-			judge="You are the judge in a blind test of an AI agent that acts for a person. Compare the agent's decision with what the person actually decided. Judge the decision and its direction, not the wording.
+			# The judge's only reference is the person's own decision. What an
+			# agent did earlier is never the expected answer, so that line of the
+			# situation is not shown to the judge at all.
+			judge="You are the judge in a blind test of an AI agent that acts for a person. Compare the agent's decision with what the person actually decided or asked for. That, in the person's own words, is the only correct answer. Anything an agent did before is never the expected answer. Judge the decision and its direction, not the wording.
 
 Reply with exactly two lines:
 Verdict: match | close | wrong
 Why: <one line>
 
-match: the same decision. close: the same direction, with a different detail, condition or order. wrong: a different decision.
+match: the same decision as the person's. close: the same direction as the person's, with a different detail, condition or order. wrong: a different decision from the person's.
 
 ## Situation
-$(cat "$c/situation.md")
+$(grep -v '^The agent did:' "$c/situation.md")
 
-## What the person actually decided
+## What the person actually decided or asked for (the only correct answer)
 $(cat "$c/answer.md")
 
 ## The agent's answer
@@ -787,7 +790,8 @@ $(cat "$scratch/answer-$total")"
 
 # fidelity_row <fidelity.md> <score> <cases> <version> <kind>: one row of
 # the portrait's fidelity log, so scores compare across versions and kinds
-# of test (build holdout, weekly forward test, your cases).
+# of test (build, before rules; after rules, same decisions; weekly forward
+# test; your cases).
 fidelity_row() {
 	umask 077
 	mkdir -p "$(dirname "$1")"
@@ -866,7 +870,7 @@ split_cases() {
 				wanted = field(line, "Wanted", "Reason")
 				why = field(line, "Reason", "")
 				printf "Situation: %s.\nThe agent did: %s.\n", sit, did > (dir "/situation.md")
-				printf "Wanted: %s.\n", wanted > (dir "/answer.md")
+				printf "What the person wanted instead: %s.\n", wanted > (dir "/answer.md")
 				if (why != "") printf "Reason: %s.\n", why > (dir "/answer.md")
 				close(dir "/situation.md"); close(dir "/answer.md")
 			}
