@@ -34,6 +34,70 @@ gemini extensions install https://github.com/yubozhao/host
 
 In Gemini CLI the same commands are `/portrait:build`, `/portrait:do`, `/portrait:fidelity`, `/portrait:publish`, `/portrait:unpublish` and `/portrait:jobs`. They are commands, so each runs only when you type it. Gemini then leads: it drafts from its own memory first, Claude and the other agents add their parts read-only, and the draft goes to Google.
 
+## Install for Antigravity CLI
+
+In a terminal:
+
+```
+git clone https://github.com/yubozhao/host ~/.agy-portrait-host
+agy plugin install ~/.agy-portrait-host/integrations/antigravity-plugin
+```
+
+In Antigravity the skills are `/portrait-build`, `/portrait-do`, `/portrait-fidelity`, `/portrait-publish`, `/portrait-unpublish` and `/portrait-jobs`; publish, unpublish and jobs run only when you type them.
+
+## Install for Devin (formerly Windsurf)
+
+In a terminal:
+
+```
+devin plugins install yubozhao/host#integrations/devin-plugin
+```
+
+The skills are `/portrait-build` and the rest; publish, unpublish and jobs run only when you type them.
+
+## Install for OpenCode and Kilo Code
+
+Clone the repository, then add the plugin folder to the `plugin` list of `~/.config/opencode/opencode.json` (or `~/.config/kilo/kilo.json` for Kilo Code):
+
+```
+git clone https://github.com/yubozhao/host ~/.opencode-portrait-host
+```
+
+```json
+{ "plugin": ["~/.opencode-portrait-host/integrations/opencode-plugin"] }
+```
+
+Use the full path in place of `~`. The commands are `/portrait-build` and the rest; each runs only when you type it.
+
+## Install for Goose
+
+Goose installs the Gemini CLI extension of this repository:
+
+```
+goose plugin install https://github.com/yubozhao/host
+```
+
+It imports the `portrait-build`, `portrait-do` and `portrait-fidelity` skills.
+
+## Install for Amp, Warp and Zed
+
+These take plain skill folders. `integrations/agent-skill/portrait` is one skill, `portrait`, with every step and its scripts inside.
+
+Amp:
+
+```
+amp skill add yubozhao/host/integrations/agent-skill/portrait --global
+```
+
+Warp and Zed: copy the folder to `~/.agents/skills/portrait`:
+
+```
+git clone https://github.com/yubozhao/host ~/.portrait-host
+cp -R ~/.portrait-host/integrations/agent-skill/portrait ~/.agents/skills/portrait
+```
+
+Ask for a step by name: build, do, fidelity, publish, unpublish or jobs. Publish, unpublish and jobs run only when you ask for them in words.
+
 ## Install for Kimi Code CLI
 
 In Kimi Code CLI:
@@ -53,6 +117,34 @@ ln -s ~/.cursor/portrait-host/integrations/cursor-plugin ~/.cursor/plugins/local
 ```
 
 In Kimi Code CLI and Cursor the commands are `/portrait:build`, `/portrait:do`, `/portrait:fidelity`, `/portrait:publish`, `/portrait:unpublish` and `/portrait:jobs`, each run only when you type it. Their own headless modes cannot be kept read-only, so the blind test, the weekly refresh and hired jobs run with Claude Code, Codex or Gemini CLI when one is on your computer.
+
+## Install for GitHub Copilot CLI
+
+In a terminal:
+
+```
+copilot plugin marketplace add yubozhao/host
+copilot plugin install portrait@host
+```
+
+In Copilot CLI the skills are `/portrait:build` and the rest; publish, unpublish and jobs run only when you type them. The portrait's own model runs (the blind test, the weekly refresh, hired jobs) use Claude Code, Codex or Gemini CLI when one is installed.
+
+## Install for Factory Droid, Augment and JetBrains Junie
+
+These read the Claude Code marketplace, so the Claude Code plugin installs as it is.
+
+Factory Droid, in a terminal:
+
+```
+droid plugin marketplace add yubozhao/host
+droid plugin install portrait@host --scope user
+```
+
+Augment (Auggie): run `auggie plugin marketplace add yubozhao/host`, then turn the plugin on in `/plugins`.
+
+JetBrains Junie CLI: add the `yubozhao/host` marketplace and install `portrait` with `/extensions install`.
+
+The commands are the Claude Code ones: `/portrait:build` and the rest.
 
 ## Commands
 

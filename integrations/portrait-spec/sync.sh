@@ -93,7 +93,8 @@ command() {
 	rm -f "$body"
 }
 
-for vars in "$root"/*/portrait.vars; do
+for vars in "$root"/*/portrait.vars "$root"/*/*/portrait.vars; do
+	[ -f "$vars" ] || continue
 	package=$(dirname "$vars")
 	mkdir -p "$package/scripts" "$package/helpers/portrait-helper"
 	cp "$here/portrait-agents" "$package/scripts/portrait-agents"
@@ -112,12 +113,25 @@ for vars in "$root"/*/portrait.vars; do
 		command "$dir/publish.${ext:-toml}" "Publish your portrait as an invite-only listing, after your yes" "$here/publish.md" "$vars"
 		command "$dir/unpublish.${ext:-toml}" "Take your portrait listing down" "$here/unpublish.md" "$vars"
 		command "$dir/jobs.${ext:-toml}" "Approve, run and send hired jobs, each on your yes" "$here/jobs.md" "$vars"
-		continue
 	fi
-	fill "$package/skills/build/SKILL.md" portrait-build "$here/lead.md" "$vars"
-	fill "$package/skills/do/SKILL.md" portrait-do "$here/do.md" "$vars"
-	fill "$package/skills/fidelity/SKILL.md" portrait-fidelity "$here/fidelity.md" "$vars"
-	fill "$package/skills/publish/SKILL.md" portrait-publish "$here/publish.md" "$vars"
-	fill "$package/skills/unpublish/SKILL.md" portrait-unpublish "$here/unpublish.md" "$vars"
-	fill "$package/skills/jobs/SKILL.md" portrait-jobs "$here/jobs.md" "$vars"
+	# Skills: every step the package has a SKILL.md for, in its skills folder
+	# (SKILLS_DIR, from the repository root, when it is not <package>/skills),
+	# named SKILL_PREFIX<step> when the package sets a prefix.
+	skills=$(awk '/^SKILLS_DIR=/ { print substr($0, 12) }' "$vars")
+	if [ -n "$skills" ]; then skills="$root/../$skills"; else skills="$package/skills"; fi
+	prefix=$(awk '/^SKILL_PREFIX=/ { print substr($0, 14) }' "$vars")
+	# SKILLS_SCRIPT: the script path the skills use, when it differs from the
+	# commands' SCRIPT (Gemini's skills also load in Goose, at another path).
+	skill_vars="$vars"
+	skills_script=$(awk '/^SKILLS_SCRIPT=/ { print substr($0, 15) }' "$vars")
+	if [ -n "$skills_script" ]; then
+		skill_vars=$(mktemp)
+		awk -v s="$skills_script" '/^SCRIPT=/ { print "SCRIPT=" s; next } { print }' "$vars" > "$skill_vars"
+	fi
+	for pair in build:lead do:do fidelity:fidelity publish:publish unpublish:unpublish jobs:jobs; do
+		name=${pair%%:*}
+		[ -f "$skills/$prefix$name/SKILL.md" ] || continue
+		fill "$skills/$prefix$name/SKILL.md" "portrait-$name" "$here/${pair#*:}.md" "$skill_vars"
+	done
+	[ "$skill_vars" = "$vars" ] || rm -f "$skill_vars"
 done

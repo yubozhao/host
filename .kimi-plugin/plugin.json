@@ -1,12 +1,22 @@
 {
   "name": "portrait",
-  "version": "0.14.1",
+  "version": "0.20.0",
   "description": "Build your portrait, a folder that lets any AI agent act the way you would, from what your AI agents know about you.",
   "license": "FSL-1.1-ALv2",
   "homepage": "https://github.com/yubozhao/host",
   "interface": {
     "displayName": "Portrait",
-    "shortDescription": "Your agentic self, built from what your AI agents know about you"
+    "shortDescription": "Your agentic self, built from what your AI agents know about you",
+    "longDescription": "Builds your portrait, a folder that lets any AI agent decide, work and communicate the way you would, from what your AI agents on this computer know about you. Then it does tasks as you, measures how well it predicts you, and lists the portrait for hire, each only when you ask."
   },
-  "commands": "./integrations/kimi-plugin/commands/"
+  "commands": "./integrations/kimi-plugin/commands/",
+  "skills": "./integrations/kimi-plugin/skills/",
+  "keywords": [
+    "portrait",
+    "agent",
+    "memory"
+  ],
+  "author": {
+    "name": "Portrait"
+  }
 }

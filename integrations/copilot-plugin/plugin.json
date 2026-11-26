@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "portrait",
+  "version": "0.20.0",
+  "description": "Build your portrait, a folder that lets any AI agent act the way you would, from what your AI agents know about you.",
+  "author": {
+    "name": "Portrait"
+  },
+  "homepage": "https://github.com/yubozhao/host",
+  "repository": "https://github.com/yubozhao/host",
+  "license": "FSL-1.1-ALv2",
+  "keywords": ["portrait", "agent", "memory"]
+}

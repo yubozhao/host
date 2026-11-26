@@ -1,0 +1,15 @@
+{
+  "name": "portrait",
+  "displayName": "Portrait",
+  "description": "Build your portrait, a folder that lets any AI agent act the way you would, from what your AI agents know about you.",
+  "version": "0.20.0",
+  "logo": "assets/logo.png",
+  "author": {
+    "name": "Portrait"
+  },
+  "homepage": "https://github.com/yubozhao/host",
+  "repository": "https://github.com/yubozhao/host",
+  "license": "FSL-1.1-ALv2",
+  "keywords": ["portrait", "agent", "memory"],
+  "suggestedPrompts": ["Build my portrait", "Do this task the way I would"]
+}

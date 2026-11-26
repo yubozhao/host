@@ -1,0 +1,17 @@
+{
+  "name": "host",
+  "owner": {
+    "name": "Portrait"
+  },
+  "metadata": {
+    "description": "The portrait plugin for GitHub Copilot CLI."
+  },
+  "plugins": [
+    {
+      "name": "portrait",
+      "source": "./integrations/copilot-plugin",
+      "description": "Build your portrait from what your AI agents know about you, and act as you from it.",
+      "version": "0.20.0"
+    }
+  ]
+}
