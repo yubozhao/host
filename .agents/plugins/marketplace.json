@@ -1,0 +1,20 @@
+{
+  "name": "host",
+  "interface": {
+    "displayName": "Portrait"
+  },
+  "plugins": [
+    {
+      "name": "portrait",
+      "source": {
+        "source": "local",
+        "path": "./integrations/codex-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

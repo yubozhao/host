@@ -1,0 +1,5 @@
+interface:
+  display_name: "Portrait: unpublish"
+  short_description: "Take your portrait listing down"
+policy:
+  allow_implicit_invocation: false

@@ -13,6 +13,17 @@ In Claude Code:
 /plugin install portrait@host
 ```
 
+## Install for Codex
+
+In a terminal:
+
+```
+codex plugin marketplace add yubozhao/host
+codex plugin add portrait@host
+```
+
+In Codex the same commands are `$portrait:build`, `$portrait:do`, `$portrait:fidelity`, `$portrait:publish` and `$portrait:unpublish`. Codex then leads: it drafts from its own memory first, Claude and the other agents add their parts read-only, and the draft goes to OpenAI instead of Anthropic. `$portrait:publish` and `$portrait:unpublish` run only when you type them.
+
 ## Commands
 
 - `/portrait:build` builds your portrait and saves it at once; you never have to answer anything. Claude drafts from its own memory and history. If Codex, Gemini, Cursor, Kimi or Alma are on your computer, each one drafts its own part from its own memory, read-only, and Claude merges the parts. It ends with a few optional scenarios you can mark right or wrong, and the command to take the portrait to each agent.

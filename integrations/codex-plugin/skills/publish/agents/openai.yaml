@@ -1,0 +1,5 @@
+interface:
+  display_name: "Portrait: publish"
+  short_description: "Publish your portrait listing, after your yes"
+policy:
+  allow_implicit_invocation: false

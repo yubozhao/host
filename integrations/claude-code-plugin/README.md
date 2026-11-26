@@ -105,6 +105,15 @@ Then run:
 /portrait:build
 ```
 
+The same plugin is built for Codex from the same sources (`integrations/codex-plugin`). In a terminal:
+
+```
+codex plugin marketplace add yubozhao/host
+codex plugin add portrait@host
+```
+
+In Codex, run `$portrait:build`, `$portrait:do`, `$portrait:fidelity`, `$portrait:publish` or `$portrait:unpublish`. Codex is then the lead: its own memory drafts first, Claude and the others are helpers, and the portrait's own model runs (the blind test and the weekly refresh) use `codex exec` instead of `claude -p`.
+
 ## What it reads and where it goes
 
 - **Reads**, with Claude Code's read tools only: `~/.claude/CLAUDE.md` and the files it includes, every memory file under `~/.claude/projects/*/memory/`, the `CLAUDE.md` files of those projects, and your own typed messages in the chat logs under `~/.claude/projects/`, searched by the script for corrections. Each other agent reads only its own memory and history.
