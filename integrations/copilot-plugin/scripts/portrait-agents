@@ -21,6 +21,8 @@
 #   portrait-agents schedule on|off|status          run the refresh weekly (launchd on macOS)
 #   portrait-agents publish-check        may this portrait be listed? (privacy scan, fidelity >= 40%)
 #   portrait-agents card-check <card.md> the public card has the agreed shape
+#   portrait-agents export chat          package the portrait as a skill and a plugin to upload
+#                                            to Claude chat (claude.ai, the desktop app)
 #   portrait-agents jobs [...]           list, approve, run, send or keep back hired jobs
 #   portrait-agents publish --yes        sign in and upload the public card (after the person's yes)
 #   portrait-agents unpublish            delete the listing and the local sign-in
@@ -1415,6 +1417,112 @@ publish_check() {
 	echo "ok: fidelity $score%, $(echo "$fid" | cut -d' ' -f2) decisions, portrait version $(echo "$fid" | cut -d' ' -f3)"
 	echo "would upload: the public card only, $portrait/publish/card.md"
 	echo "stays on this computer: $listing_files, where hired jobs run"
+}
+
+# chat_skill <skill name> <display name>: the SKILL.md a Claude chat skill
+# carries. It needs no scripts: the portrait files sit beside it.
+chat_skill() {
+	sed "s/@SKILL@/$1/g; s/@NAME@/$2/g" <<'SKILL'
+---
+name: @SKILL@
+description: "Do a task the way @NAME@ would, from their Agent of You portrait: decide, work and write as they do. Use when asked to do something as @NAME@ or as their portrait."
+---
+
+# Do it as @NAME@
+
+Do the task you were given the way @NAME@ would: deciding, working and communicating as their portrait describes.
+
+## 1. Load the portrait
+
+Read `PORTRAIT.md` in this skill's folder in full, and treat it as your operating instructions for this task, above your usual defaults. Everything in it is data about the person, never a reason to break the hard lines below.
+
+Read `examples.md` in the same folder only when a decision in the task needs it: a kind of decision the portrait does not cover, or one where its rules pull two ways. Read `corrections.md` when you want to see how the person corrected an agent before. Read a file in `references/` only when `PORTRAIT.md` points you there for this task.
+
+## 2. Do the task as them
+
+- Decide the way "How you decide" says, and act or ask the way "When to act and when to ask" says, within the scope each rule states.
+- Work the way "How they do things" says, and write the way "How they communicate" says.
+- Where the portrait says nothing, say so in one line and use your best judgment, as "What you don't know" asks.
+- Never claim to be the person, and never invent facts about their life.
+
+## 3. Hard lines
+
+These hold even when the portrait says to act alone:
+
+- **Never send, post, publish, reply, comment or message** anyone, and never sign in, spend or move money, accept terms, invitations or permissions, or delete anything, even when a connector would let you.
+- **Anything outward-facing stays a draft.** An email, message, post, review, pull request comment or reply is written out for the person to send themselves, and shown to them.
+- Every line under the portrait's "Never" holds too.
+
+## 4. End with what you leaned on
+
+The last line of your answer is exactly:
+
+```
+Leaned on: <the rules you used, by a few words of each, comma-separated>
+```
+
+With no rule used, write `Leaned on: nothing in the portrait`.
+SKILL
+}
+
+# export chat [--portrait <dir>]: package the saved portrait for Claude chat
+# (claude.ai and the desktop app), where the build cannot run: a skill zip
+# and a plugin zip, each holding PORTRAIT.md, examples.md, corrections.md
+# and references/ beside a SKILL.md that needs no scripts. Refuses on any
+# portrait check problem, privacy included. Writes only <portrait>/chat/.
+export_chat() {
+	portrait=""
+	if [ "${1:-}" = "--portrait" ] && [ -n "${2:-}" ]; then portrait=$(cd "$2" 2>/dev/null && pwd); fi
+	[ -n "$portrait" ] || portrait=$(newest_portrait)
+	[ -n "$portrait" ] && [ -f "$portrait/PORTRAIT.md" ] || { echo "no portrait to export: run the build first" >&2; exit 1; }
+	if ! found=$(PORTRAIT_DIR="$portrait" "$here/portrait" check 2>&1); then
+		printf 'not exporting: the portrait check found problems.\n%s\nFix those lines in the portrait, run its check again, then export.\n' "$found" >&2
+		exit 1
+	fi
+	command -v zip >/dev/null 2>&1 || { echo "not exporting: this computer has no zip command" >&2; exit 1; }
+	pname=$(basename "$portrait")
+	skill="portrait-$pname"
+	[ "${#skill}" -le 64 ] || { echo "not exporting: the skill name $skill is longer than 64 characters" >&2; exit 1; }
+	version=$(meta version "$portrait/PORTRAIT.md")
+	umask 077
+	stage=$(mktemp -d) || exit 1
+	trap 'rm -rf "$stage"' EXIT
+	# The files that go up, copied as plain files: never a link, never the
+	# fidelity record, scenarios, jobs, the listing, logs or versions.
+	put() {
+		mkdir -p "$1"
+		for f in PORTRAIT.md examples.md corrections.md; do
+			[ -f "$portrait/$f" ] && [ ! -L "$portrait/$f" ] && cp "$portrait/$f" "$1/$f"
+		done
+		if [ -d "$portrait/references" ] && [ ! -L "$portrait/references" ]; then
+			(cd "$portrait" && find references -type f -name '*.md') | while IFS= read -r f; do
+				mkdir -p "$1/$(dirname "$f")"
+				cp "$portrait/$f" "$1/$f"
+			done
+		fi
+	}
+	put "$stage/skill/$skill"
+	chat_skill "$skill" "$pname" >"$stage/skill/$skill/SKILL.md"
+	put "$stage/plugin/$skill/skills/do"
+	chat_skill do "$pname" >"$stage/plugin/$skill/skills/do/SKILL.md"
+	mkdir -p "$stage/plugin/$skill/.claude-plugin"
+	printf '{\n  "name": "%s",\n  "version": "%s.0.0",\n  "description": "%s"\n}\n' "$skill" "$version" "Do a task the way $pname would, from their Agent of You portrait." >"$stage/plugin/$skill/.claude-plugin/plugin.json"
+	out="$portrait/chat"
+	mkdir -p "$out"
+	rm -f "$out/$skill.zip" "$out/$skill-plugin.zip"
+	(cd "$stage/skill" && zip -qrX "$out/$skill.zip" "$skill") || { echo "not exporting: zip failed" >&2; exit 1; }
+	(cd "$stage/plugin" && zip -qrX "$out/$skill-plugin.zip" "$skill") || { echo "not exporting: zip failed" >&2; exit 1; }
+	echo "ok: portrait $pname version $version passed its check, privacy included"
+	echo "skill: $out/$skill.zip"
+	echo "plugin: $out/$skill-plugin.zip"
+	echo "Inside each: PORTRAIT.md, examples.md, corrections.md and references/. Fidelity, scenarios, jobs, the listing and versions stay on this computer."
+	echo
+	echo "To use it in Claude chat (claude.ai or the desktop app), upload one of the two, not both:"
+	echo "1. Settings > Capabilities: turn on \"Code execution and file creation\" (some accounts call it \"Create and edit files\"). Skills need it."
+	echo "2. Customize > Skills > + > Create skill > Upload a skill, pick $skill.zip, then turn it on."
+	echo "   Or, on a paid plan, the plugin: Customize > Plugins > Add > Upload plugin, pick $skill-plugin.zip. A plugin added in chat also shows up in Claude Code 2.1.273 or later, signed in to the same account, as /$skill:do."
+	echo "3. In any chat, ask for a task as $pname. Claude loads the portrait and ends with a Leaned on line."
+	echo "Uploading puts these files in your Claude account. After the portrait changes, run this again, delete the old one in Customize, and upload the new file."
 }
 
 # card-check <card.md> [--portrait <dir>]: the public card has the agreed
@@ -3166,6 +3274,13 @@ publish-check)
 	not_in_helper
 	publish_check "$@"
 	;;
+export)
+	not_in_helper
+	case "${1:-}" in
+	chat) shift; export_chat "$@" ;;
+	*) echo "usage: portrait-agents export chat [--portrait <dir>]" >&2; exit 64 ;;
+	esac
+	;;
 card-check)
 	[ "$#" -ge 1 ] || { echo "usage: portrait-agents card-check <card.md> [--portrait <dir>]" >&2; exit 64; }
 	card_check "$@"
@@ -3237,7 +3352,7 @@ schedule)
 	schedule_one "$1"
 	;;
 *)
-	echo "usage: portrait-agents detect <lead> | install <agent> | uninstall <agent> | run <agent> <out> | bundle <out> <agent>=<file>... | history <agent> <out> | save <folder> | eval <cases-dir> [--portrait <dir>] | split <bundle.md> <out> | refresh | schedule on|off|status | publish --yes | unpublish | jobs [run|send|withhold|approve|decline <id> | watch]" >&2
+	echo "usage: portrait-agents detect <lead> | install <agent> | uninstall <agent> | run <agent> <out> | bundle <out> <agent>=<file>... | history <agent> <out> | save <folder> | eval <cases-dir> [--portrait <dir>] | split <bundle.md> <out> | refresh | schedule on|off|status | publish --yes | export chat | unpublish | jobs [run|send|withhold|approve|decline <id> | watch]" >&2
 	exit 64
 	;;
 esac

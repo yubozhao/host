@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "portrait",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "description": "Build your portrait, a folder that lets any AI agent act the way you would, from what your AI agents know about you.",
   "author": {
     "name": "Portrait"

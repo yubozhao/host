@@ -147,7 +147,7 @@ snapshot() {
 	mkdir -p "$to"
 	for entry in "$dir"/* "$dir"/.[!.]*; do
 		[ -e "$entry" ] || continue
-		case "$(basename "$entry")" in versions | scripts | .git | logs | fidelity | .refresh.lock | .publish) continue ;; esac
+		case "$(basename "$entry")" in versions | scripts | .git | logs | fidelity | .refresh.lock | .publish | chat) continue ;; esac
 		cp -R "$entry" "$to/"
 	done
 	echo "versions/$(basename "$to")"
