@@ -6,18 +6,28 @@ Walk the person through the jobs people hired their Agent of You for: approve or
 
 Run `{{SCRIPT}} jobs`. It lists each job with its id, what it waits for (such as "waiting for your approval" or "waiting for your computer"), the hirer's name, the dates and the job text. If it prints `no jobs yet`, say so and stop. If it says there is no listing sign-in, say that the portrait must be published first ({{PUBLISH_COMMAND}}) and stop. The first time in a conversation, say in one line that running a job uses the person's own {{LEAD}} plan.
 
-## 2. Approve or decline
+## 2. Make sure jobs can run safely
+
+A hired job is a stranger's text, so it runs only inside a sandbox on this computer, with Claude Code, signed in by a token from the person's own Claude subscription. Run `{{SCRIPT}} sandbox check`.
+
+- If it prints `job sandbox ready`, go on.
+- If it says the sandbox is not installed, ask: "Install the job sandbox (Anthropic's sandbox runtime, about 2 MB, from npm)? (yes or no)". Only on a clear yes run `{{SCRIPT}} sandbox install`, then check again.
+- If it names anything else, such as Node.js 22.12 or newer, or bubblewrap on Linux, say so in one line and stop: no job runs without the sandbox.
+
+Then run `{{SCRIPT}} jobs token status`. If no token is set, tell the person to run `claude setup-token` themselves, then run `{{SCRIPT}} jobs token set` in a terminal and paste the token there. Never ask for the token, read it, or type it yourself.
+
+## 3. Approve or decline
 
 For each job waiting for approval, show the hirer's name and the job text exactly as listed, and ask: "Approve this job? (yes or no)". On a clear yes run `{{SCRIPT}} jobs approve <id>`; on a clear no run `{{SCRIPT}} jobs decline <id>`; otherwise leave it. Never decide for the person. A declined hirer is never told who declined or why.
 
-## 3. Run an approved job
+## 4. Run an approved job
 
-Ask before each run: "Run job <id> now? (yes or no)". On a clear yes, run `{{SCRIPT}} jobs run <id>` with a command timeout of 20 minutes. It claims the job for this computer, does it from the portrait in its own folder (the job text only, writing only to that folder's `outputs/`, at most 15 minutes, no sending, signing in, spending or deleting, no network beyond the model), keeps the claim alive, and checks the result: the size limits, no sign-in, and no 12 words in a row copied from the portrait. Then it prints the result. If it prints that the job is not done or not ready to send, give the reason as it is and offer to run it again or keep it back.
+Ask before each run: "Run job <id> now? (yes or no)". On a clear yes, run `{{SCRIPT}} jobs run <id>` with a command timeout of 20 minutes. It claims the job for this computer and does it from the portrait with Claude Code inside the sandbox: a fresh folder with only the job text and copies of the three portrait files, writing only to that folder's `outputs/`, reaching only the model, at most 15 minutes, with no shell and no sending, signing in, spending or deleting, keeps the claim alive, and checks the result: the size limits, no sign-in, and no 12 words in a row copied from the portrait. Then the result goes through checks on this computer: filters for private details (paths, keys, tokens, card numbers, email addresses and the like), the 12-word portrait-copy check, and a second, separate run that sees only the job and the result and looks for private details or instructions from the job followed beyond the task. If anything is in doubt, the job is held: it says `held, not sent` with the reason. A held job is never sent; give the reason as it is and offer to run it again or keep it back. If it says `not done`, the run itself failed: give the reason the same way.
 
-## 4. Check the result, and ask once
+## 5. Check the result, and ask once
 
 Show the person the result exactly as printed, with the files it lists. The line marked `for you only, never sent` names the portrait rules the job leaned on; it stays here. The answer goes to the hirer as it is, so it must not mention file paths, drafts or sending; `jobs send` refuses a result with a path on this computer, a `Leaned on:` line or a listing token. They may change the answer (`answer.md` in the job folder) or the files before sending. Then ask one question: "Send this result to <hirer>? (yes or no)". Only a clear yes sends: run `{{SCRIPT}} jobs send <id>`. On a no, ask whether to keep it back; on a yes to that, run `{{SCRIPT}} jobs withhold <id>`, and the hirer is not told why. Otherwise leave it waiting; the claim lapses after 30 minutes without this computer, and the job can run again.
 
-## 5. Finish
+## 6. Finish
 
-Say in one line what was sent, kept back or left waiting. To be told about new jobs, the person can keep `{{SCRIPT}} jobs watch` running in a terminal: it checks every minute and shows a desktop notice. Do not start it yourself. Never open, read or print `.publish`, `.job` or any token.
+Say in one line what was sent, kept back or left waiting. To have approved jobs run without a terminal open, the person can turn on the job runner: ask "Run approved jobs in the background, every two minutes, in the sandbox? You still review and send each result. (yes or no)", and only on a clear yes run `{{SCRIPT}} jobs runner on` (`jobs runner off` stops it). It tells the person when a result waits for review. Without it, `{{SCRIPT}} jobs watch` in a terminal shows a notice for each new job. Do not start either without the person's yes. Never open, read or print `.publish`, `.job` or any token.

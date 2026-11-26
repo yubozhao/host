@@ -1,0 +1,8 @@
+{
+  "name": "portrait-job-sandbox",
+  "private": true,
+  "description": "The pinned sandbox runtime that hired portrait jobs run inside (portrait-agents sandbox install).",
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.83"
+  }
+}

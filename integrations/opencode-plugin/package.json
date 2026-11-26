@@ -1,6 +1,6 @@
 {
   "name": "opencode-portrait",
-  "version": "0.20.0",
+  "version": "0.23.0",
   "description": "Build your portrait, a folder that lets any AI agent act the way you would, from what your AI agents know about you.",
   "type": "module",
   "main": "index.js",

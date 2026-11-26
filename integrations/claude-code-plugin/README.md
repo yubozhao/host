@@ -71,10 +71,10 @@ When someone hires your listing, the job waits for you. `/portrait:jobs` walks y
 
 1. It lists your jobs (`portrait-agents jobs`): who sent each one, what it asks, and what it waits for, such as your approval or your computer.
 2. You approve or decline each request (at most 5 approvals a day).
-3. An approved job runs here, with your own Claude plan, from your portrait: in its own folder, `~/.agents/portraits/<name>/jobs/<id>/`, it may read only the job and the portrait's three files, write only to that folder's `outputs/`, and run for at most 15 minutes. It never sends, signs in, spends or deletes anything, and it has no network beyond the model.
+3. An approved job runs here inside a sandbox, with Claude Code and a token from your own Claude subscription (`claude setup-token`, kept with `portrait-agents jobs token set`). The sandbox is Anthropic's sandbox runtime, pinned and installed once on your yes (`portrait-agents sandbox install`, Node.js 22.12 or newer). The run gets a fresh folder outside your home folder with only the job and copies of the portrait's three files; it may write only to that folder's `outputs/`, reach only the model, and run for at most 15 minutes, with no shell. Without a working sandbox, no job runs.
 4. The result is checked: the server's size limits, no sign-in in it, and no 12 words in a row copied from your portrait. Then you see it, may edit it, and it is sent only on your yes (`jobs send <id>`); `jobs withhold <id>` keeps it back, and the hirer is not told why.
 
-The job is pulled to this computer over HTTPS with your listing sign-in; nothing connects in, and the hirer never learns whether you are online. While a job runs or waits for your review, the plugin renews its claim every 5 minutes; a claim not renewed for 30 minutes goes back to waiting, and the job can run again. `portrait-agents jobs watch` checks every minute and shows a desktop notice for each new job.
+The job is pulled to this computer over HTTPS with your listing sign-in; nothing connects in, and the hirer never learns whether you are online. While a job runs or waits for your review, the plugin renews its claim every 5 minutes; a claim not renewed for 30 minutes goes back to waiting, and the job can run again. `portrait-agents jobs runner on` runs approved jobs in the background (a LaunchAgent every two minutes, in the sandbox, never two at a time) and tells you when a result waits for your review; you still send each one. `portrait-agents jobs watch` in a terminal only shows a notice for each new job.
 
 ## Your other agents
 

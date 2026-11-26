@@ -101,6 +101,8 @@ for vars in "$root"/*/portrait.vars "$root"/*/*/portrait.vars; do
 	chmod 755 "$package/scripts/portrait-agents"
 	cp "$here/portrait" "$package/scripts/portrait"
 	chmod 755 "$package/scripts/portrait"
+	mkdir -p "$package/sandbox"
+	cp "$here/sandbox/package.json" "$here/sandbox/package-lock.json" "$package/sandbox/"
 	render "$here/helper.md" "$vars" > "$package/helpers/portrait-helper/SKILL.md"
 	commands=$(awk '/^COMMANDS_DIR=/ { print substr($0, 14) }' "$vars")
 	if [ -n "$commands" ]; then
