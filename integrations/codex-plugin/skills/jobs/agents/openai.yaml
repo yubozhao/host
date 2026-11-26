@@ -1,0 +1,5 @@
+interface:
+  display_name: "Portrait: jobs"
+  short_description: "Approve, run and send hired jobs, each on your yes"
+policy:
+  allow_implicit_invocation: false

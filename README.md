@@ -22,7 +22,37 @@ codex plugin marketplace add yubozhao/host
 codex plugin add portrait@host
 ```
 
-In Codex the same commands are `$portrait:build`, `$portrait:do`, `$portrait:fidelity`, `$portrait:publish` and `$portrait:unpublish`. Codex then leads: it drafts from its own memory first, Claude and the other agents add their parts read-only, and the draft goes to OpenAI instead of Anthropic. `$portrait:publish` and `$portrait:unpublish` run only when you type them.
+In Codex the same commands are `$portrait:build`, `$portrait:do`, `$portrait:fidelity`, `$portrait:publish`, `$portrait:unpublish` and `$portrait:jobs`. Codex then leads: it drafts from its own memory first, Claude and the other agents add their parts read-only, and the draft goes to OpenAI instead of Anthropic. `$portrait:publish`, `$portrait:unpublish` and `$portrait:jobs` run only when you type them.
+
+## Install for Gemini CLI
+
+In a terminal:
+
+```
+gemini extensions install https://github.com/yubozhao/host
+```
+
+In Gemini CLI the same commands are `/portrait:build`, `/portrait:do`, `/portrait:fidelity`, `/portrait:publish`, `/portrait:unpublish` and `/portrait:jobs`. They are commands, so each runs only when you type it. Gemini then leads: it drafts from its own memory first, Claude and the other agents add their parts read-only, and the draft goes to Google.
+
+## Install for Kimi Code CLI
+
+In Kimi Code CLI:
+
+```
+/plugins install https://github.com/yubozhao/host
+/reload
+```
+
+## Install for Cursor
+
+Cursor lists plugins in its reviewed marketplace; until this one is listed, add it as a local plugin. In a terminal:
+
+```
+git clone https://github.com/yubozhao/host ~/.cursor/portrait-host
+ln -s ~/.cursor/portrait-host/integrations/cursor-plugin ~/.cursor/plugins/local/portrait
+```
+
+In Kimi Code CLI and Cursor the commands are `/portrait:build`, `/portrait:do`, `/portrait:fidelity`, `/portrait:publish`, `/portrait:unpublish` and `/portrait:jobs`, each run only when you type it. Their own headless modes cannot be kept read-only, so the blind test, the weekly refresh and hired jobs run with Claude Code, Codex or Gemini CLI when one is on your computer.
 
 ## Commands
 
@@ -33,7 +63,8 @@ In Codex the same commands are `$portrait:build`, `$portrait:do`, `$portrait:fid
 
 `/portrait:build` also measures itself: it holds out your newest corrections, builds without them, and reports how often the portrait decided as you did, such as `Fidelity 71% from 12 recent decisions`. Then a weekly refresh keeps it current: it scores the portrait on your new corrections first, then folds them in. Stop it any time with `~/.agents/portraits/<name>/scripts/portrait-agents schedule off`.
 
-- `/portrait:publish` lists your portrait so people can ask to hire it: invite only, you approve every job, and no money moves. It shows the exact public card and files first and uploads only on your yes. `/portrait:unpublish` takes it down.
+- `/portrait:publish` lists your portrait so people can ask to hire it: invite only, you approve every job, and no money moves. It shows the exact public card first and uploads only that card, on your yes; the portrait stays on your computer. `/portrait:unpublish` takes it down.
+- `/portrait:jobs` handles the jobs people hire it for: you approve each one, it runs on your computer from your portrait with your own plan, and you check the result before it is sent.
 
 ## What it reads and writes
 

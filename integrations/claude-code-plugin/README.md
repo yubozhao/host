@@ -56,14 +56,25 @@ Effort is set to keep token use moderate. `/portrait:build` runs at high effort,
 
 ## Publish your listing: /portrait:publish
 
-`/portrait:publish` lists your portrait so people can find it and ask to hire it. Listing is by invite only, you approve every job, and no money moves. It is the one command that asks you before acting:
+`/portrait:publish` lists your portrait so people can find it and ask to hire it. Listing is by invite only, you approve every job, and no money moves. It asks you before acting:
 
 1. It refuses if the portrait check finds anything private, or if the portrait's last fidelity score is under 40%, and says what to do next.
 2. It drafts a public card: a summary, three kinds of work to hire you for, two sample answers from your scenarios, the fidelity score and the portrait version.
-3. It shows you the exact card and the exact files that would upload: `PORTRAIT.md`, `examples.md` and `scenarios.md`, never `corrections.md`, the logs or `versions/`. Nothing uploads unless you say yes.
+3. It shows you the exact card, the only thing that uploads. The portrait itself, `corrections.md`, the logs and `versions/` stay on this computer. Nothing uploads unless you say yes.
 4. You sign in with a code sent to your email, and the sign-in stays in a private file in the portrait folder that nothing prints.
 
-`portrait-agents listing keep-current on` lets the weekly refresh redraft the card and upload it again; it is off until you turn it on. `/portrait:unpublish` deletes the listing and the server's copy, and removes the sign-in from this computer.
+`portrait-agents listing keep-current on` lets the weekly refresh redraft the card and upload it again; it is off until you turn it on. `/portrait:unpublish` deletes the listing and its jobs from the server, and removes the sign-in from this computer.
+
+## Hired jobs: /portrait:jobs
+
+When someone hires your listing, the job waits for you. `/portrait:jobs` walks you through it, and asks before each step:
+
+1. It lists your jobs (`portrait-agents jobs`): who sent each one, what it asks, and what it waits for, such as your approval or your computer.
+2. You approve or decline each request (at most 5 approvals a day).
+3. An approved job runs here, with your own Claude plan, from your portrait: in its own folder, `~/.agents/portraits/<name>/jobs/<id>/`, it may read only the job and the portrait's three files, write only to that folder's `outputs/`, and run for at most 15 minutes. It never sends, signs in, spends or deletes anything, and it has no network beyond the model.
+4. The result is checked: the server's size limits, no sign-in in it, and no 12 words in a row copied from your portrait. Then you see it, may edit it, and it is sent only on your yes (`jobs send <id>`); `jobs withhold <id>` keeps it back, and the hirer is not told why.
+
+The job is pulled to this computer over HTTPS with your listing sign-in; nothing connects in, and the hirer never learns whether you are online. While a job runs or waits for your review, the plugin renews its claim every 5 minutes; a claim not renewed for 30 minutes goes back to waiting, and the job can run again. `portrait-agents jobs watch` checks every minute and shows a desktop notice for each new job.
 
 ## Your other agents
 
@@ -112,7 +123,17 @@ codex plugin marketplace add yubozhao/host
 codex plugin add portrait@host
 ```
 
-In Codex, run `$portrait:build`, `$portrait:do`, `$portrait:fidelity`, `$portrait:publish` or `$portrait:unpublish`. Codex is then the lead: its own memory drafts first, Claude and the others are helpers, and the portrait's own model runs (the blind test and the weekly refresh) use `codex exec` instead of `claude -p`.
+In Codex, run `$portrait:build`, `$portrait:do`, `$portrait:fidelity`, `$portrait:publish`, `$portrait:unpublish` or `$portrait:jobs`. Codex is then the lead: its own memory drafts first, Claude and the others are helpers, and the portrait's own model runs (the blind test, the weekly refresh and hired jobs) use `codex exec` instead of `claude -p`.
+
+For Gemini CLI, the repository root is a Gemini extension: `gemini-extension.json` and the commands in `commands/portrait/`, rendered from the same sources, with the scripts in `integrations/gemini-extension`. In a terminal:
+
+```
+gemini extensions install https://github.com/yubozhao/host
+```
+
+Then run `/portrait:build` (and the other commands) in Gemini CLI. Its own model runs use `gemini -p` with no extensions or MCP servers and with its shell and web tools denied; Gemini CLI has no effort setting.
+
+Kimi Code CLI and Cursor get the same steps as commands: `.kimi-plugin/plugin.json` at the repository root points Kimi at `integrations/kimi-plugin/commands/` (install with `/plugins install https://github.com/yubozhao/host`), and `.cursor-plugin/marketplace.json` lists `integrations/cursor-plugin`. Neither one's headless mode can be kept read-only and off the shell, so the portrait's own model runs use Claude Code, Codex or Gemini CLI when one is installed, and otherwise say that one is needed.
 
 ## What it reads and where it goes
 
@@ -161,6 +182,7 @@ The full test suite (stub agent CLIs and a temporary home folder, so it never to
 - `skills/do/SKILL.md`: `/portrait:do`, rendered from `integrations/portrait-spec/do.md`.
 - `skills/fidelity/SKILL.md`: `/portrait:fidelity`, rendered from `integrations/portrait-spec/fidelity.md`.
 - `skills/publish/SKILL.md` and `skills/unpublish/SKILL.md`: `/portrait:publish` and `/portrait:unpublish`, rendered from `publish.md` and `unpublish.md`.
+- `skills/jobs/SKILL.md`: `/portrait:jobs`, rendered from `jobs.md`.
 - `scripts/portrait`: the tool that travels inside every portrait folder: `check`, `install <agent>` and `uninstall <agent>`, `snapshot`, and `verdict <n> right|wrong [reason]`.
 - `helpers/portrait-helper/SKILL.md`: the helper that the other agents run.
 - `portrait.vars`: this platform's values for the shared lead steps (its name, id and script path).

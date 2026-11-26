@@ -1,0 +1,16 @@
+{
+  "name": "host",
+  "owner": {
+    "name": "Portrait"
+  },
+  "metadata": {
+    "description": "The portrait plugin: build your portrait, a folder that lets any AI agent act the way you would."
+  },
+  "plugins": [
+    {
+      "name": "portrait",
+      "source": "integrations/cursor-plugin",
+      "description": "Build your portrait from what your AI agents know about you, and act as you from it."
+    }
+  ]
+}

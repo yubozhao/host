@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "The portrait plugin for Claude Code.",
-    "version": "0.11.0"
+    "version": "0.14.1"
   },
   "plugins": [
     {
       "name": "portrait",
       "description": "Build your portrait: a folder, like a skill, that lets any AI agent act the way you would, drawn from the memory and corrections of Claude and your other AI agents.",
-      "version": "0.11.0",
+      "version": "0.14.1",
       "source": "./integrations/claude-code-plugin",
       "author": {
         "name": "portrait",

@@ -11,5 +11,5 @@ effort: low
 
 Take the person's listing down.
 
-Run `"${CLAUDE_PLUGIN_ROOT}/scripts/portrait-agents" unpublish`. It deletes the listing and the server's copy of the portrait, then removes the sign-in from this computer. Tell the person what it printed, in one line. If it fails, give its message as it is; nothing local was removed. The portrait itself stays on this computer.
+Run `"${CLAUDE_PLUGIN_ROOT}/scripts/portrait-agents" unpublish`. It deletes the listing and its jobs from the server, then removes the sign-in from this computer. Tell the person what it printed, in one line. If it fails, give its message as it is; nothing local was removed. The portrait itself stays on this computer.
 <!-- portrait-unpublish:end -->

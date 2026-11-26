@@ -4,7 +4,7 @@ Publish the person's portrait as a listing others can find. Listing is by invite
 
 ## 1. Check it may be listed
 
-Run `{{SCRIPT}} publish-check`. If it refuses, tell the person its message as it is, and stop: it names what to do next (fix a privacy finding, or raise the fidelity score). Otherwise it prints the fidelity, the portrait version and the files that would upload.
+Run `{{SCRIPT}} publish-check`. If it refuses, tell the person its message as it is, and stop: it names what to do next (fix a privacy finding, or raise the fidelity score). Otherwise it prints the fidelity, the portrait version and what would upload: the public card only. The portrait files stay on this computer, where hired jobs run.
 
 ## 2. Choose the listing name
 
@@ -37,7 +37,7 @@ The title is the display name the listing shows: the first name the portrait use
 
 ## 4. Show exactly what would be public, and ask once
 
-Show the person the card exactly as written, the listing name, then the exact list of files `publish-check` printed. Say that only those files upload, and never `corrections.md`, the logs or `versions/`. Then ask one question: "Publish this listing as <name>? (yes or no)". Wait for the answer. Only a clear yes publishes; anything else stops here, and nothing is uploaded.
+Show the person the card exactly as written and the listing name. Say that only this card uploads: the portrait, `corrections.md`, the logs and `versions/` stay on this computer. Then ask one question: "Publish this listing as <name>? (yes or no)". Wait for the answer. Only a clear yes publishes; anything else stops here, and nothing is uploaded.
 
 ## 5. Publish
 
@@ -45,4 +45,4 @@ On a clear yes, run `{{SCRIPT}} publish --yes`, with a command timeout of 10 min
 
 ## 6. Finish
 
-Give the listing address it printed. Say in one line that it is invite only and that they approve every job. Then offer, in one line, to keep the listing current: `{{SCRIPT}} listing keep-current on` makes the weekly refresh redraft the card and upload it again. Do not turn it on yourself.
+Give the listing address it printed. Say in one line that it is invite only, that they approve every job, and that approved jobs run on this computer with {{JOBS_COMMAND}}. Then offer, in one line, to keep the listing current: `{{SCRIPT}} listing keep-current on` makes the weekly refresh redraft the card and upload it again. Do not turn it on yourself.

@@ -1,6 +1,6 @@
 {
   "name": "portrait",
-  "version": "0.11.0",
+  "version": "0.14.1",
   "description": "Build your portrait: a folder, like a skill, that lets any AI agent act the way you would, drawn from the memory and corrections of Codex and your other AI agents.",
   "author": {
     "name": "portrait",

@@ -1,14 +1,17 @@
 #!/bin/sh
 # Copies the canonical portrait files into every platform package: the
 # shared scripts (portrait-agents and portrait), the helper skill, and the build,
-# do, fidelity, publish and unpublish skills. Run it after editing anything in this folder;
+# do, fidelity, publish, unpublish and jobs skills. Run it after editing anything in this folder;
 # portrait_agents_test.go fails when a package copy drifts.
 #
 # A package is a folder with a portrait.vars file (KEY=value lines: LEAD,
-# LEAD_ID, SCRIPT, PORTRAIT_COMMAND, AS_ME_COMMAND, FIDELITY_COMMAND). Each
+# LEAD_ID, SCRIPT, PORTRAIT_COMMAND, AS_ME_COMMAND, FIDELITY_COMMAND,
+# PUBLISH_COMMAND, JOBS_COMMAND). Each
 # skill keeps its own frontmatter and gets lead.md, do.md or fidelity.md,
 # rendered with those values, between its portrait-build, portrait-do or
-# portrait-fidelity markers. Every package can lead and carries the helper.
+# portrait-fidelity markers. A package with COMMANDS_DIR (Gemini CLI) gets
+# each step as a custom command there instead. Every package can lead and
+# carries the helper.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
@@ -43,6 +46,53 @@ fill() {
 	rm -f "$body"
 }
 
+# command <file> <description> <template> <vars>: one step as a custom
+# command. A .toml file is a Gemini CLI command: the rendered template as a
+# TOML literal string, which Gemini CLI would otherwise expand at !{...},
+# @{...} and {{args}}. A .md file is a Kimi Code CLI or Cursor command:
+# frontmatter, the package's COMMANDS_NOTE if any, then the template; Kimi
+# replaces $ARGUMENTS, which no template uses, and appends the typed text.
+command() {
+	body=$(mktemp)
+	render "$3" "$4" > "$body"
+	name=$(basename "$1")
+	name=${name%.*}
+	note=$(awk '/^COMMANDS_NOTE=/ { print substr($0, 15) }' "$4")
+	case "$1" in
+	*.toml)
+		if grep -q "'''" "$body" || grep -qE '!\{|@\{|\{\{args\}\}' "$body"; then
+			echo "$3 has ''', !{, @{ or {{args}}, which a Gemini CLI command cannot carry" >&2
+			exit 1
+		fi
+		{
+			echo "# Rendered by integrations/portrait-spec/sync.sh from $(basename "$3"); do not edit."
+			echo "description = \"$2\""
+			echo "prompt = '''"
+			cat "$body"
+			echo "'''"
+		} > "$1"
+		;;
+	*.md)
+		if grep -q '\$ARGUMENTS' "$body"; then echo "$3 has \$ARGUMENTS" >&2; exit 1; fi
+		{
+			echo "---"
+			echo "name: $name"
+			echo "description: \"$2\""
+			echo "---"
+			echo
+			echo "<!-- Rendered by integrations/portrait-spec/sync.sh from $(basename "$3"); do not edit. -->"
+			echo
+			if [ -n "$note" ]; then
+				echo "$note"
+				echo
+			fi
+			cat "$body"
+		} > "$1"
+		;;
+	esac
+	rm -f "$body"
+}
+
 for vars in "$root"/*/portrait.vars; do
 	package=$(dirname "$vars")
 	mkdir -p "$package/scripts" "$package/helpers/portrait-helper"
@@ -51,9 +101,23 @@ for vars in "$root"/*/portrait.vars; do
 	cp "$here/portrait" "$package/scripts/portrait"
 	chmod 755 "$package/scripts/portrait"
 	render "$here/helper.md" "$vars" > "$package/helpers/portrait-helper/SKILL.md"
+	commands=$(awk '/^COMMANDS_DIR=/ { print substr($0, 14) }' "$vars")
+	if [ -n "$commands" ]; then
+		dir="$root/../$commands"
+		ext=$(awk '/^COMMANDS_FORMAT=/ { print substr($0, 17) }' "$vars")
+		mkdir -p "$dir"
+		command "$dir/build.${ext:-toml}" "Build and save your portrait from what your AI agents know about you" "$here/lead.md" "$vars"
+		command "$dir/do.${ext:-toml}" "Do a task the way you would, from your portrait" "$here/do.md" "$vars"
+		command "$dir/fidelity.${ext:-toml}" "Blind-test how well your portrait predicts you on a folder of cases" "$here/fidelity.md" "$vars"
+		command "$dir/publish.${ext:-toml}" "Publish your portrait as an invite-only listing, after your yes" "$here/publish.md" "$vars"
+		command "$dir/unpublish.${ext:-toml}" "Take your portrait listing down" "$here/unpublish.md" "$vars"
+		command "$dir/jobs.${ext:-toml}" "Approve, run and send hired jobs, each on your yes" "$here/jobs.md" "$vars"
+		continue
+	fi
 	fill "$package/skills/build/SKILL.md" portrait-build "$here/lead.md" "$vars"
 	fill "$package/skills/do/SKILL.md" portrait-do "$here/do.md" "$vars"
 	fill "$package/skills/fidelity/SKILL.md" portrait-fidelity "$here/fidelity.md" "$vars"
 	fill "$package/skills/publish/SKILL.md" portrait-publish "$here/publish.md" "$vars"
 	fill "$package/skills/unpublish/SKILL.md" portrait-unpublish "$here/unpublish.md" "$vars"
+	fill "$package/skills/jobs/SKILL.md" portrait-jobs "$here/jobs.md" "$vars"
 done
