@@ -22,6 +22,8 @@ In Claude Code:
 
 `/portrait:build` also measures itself: it holds out your newest corrections, builds without them, and reports how often the portrait decided as you did, such as `Fidelity 71% from 12 recent decisions`. Then a weekly refresh keeps it current: it scores the portrait on your new corrections first, then folds them in. Stop it any time with `~/.agents/portraits/<name>/scripts/portrait-agents schedule off`.
 
+- `/portrait:publish` lists your portrait so people can ask to hire it: invite only, you approve every job, and no money moves. It shows the exact public card and files first and uploads only on your yes. `/portrait:unpublish` takes it down.
+
 ## What it reads and writes
 
 - **Reads**, read-only: each agent's own memory and instructions files, and the messages you typed yourself in its recent history (the last 60 days), to find the times you corrected it. Tool output, system messages, pasted text and other agents' messages never count.

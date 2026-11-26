@@ -19,6 +19,12 @@
 #   portrait-agents split <bundle.md> <out>        hold out the newest corrections as blind-test cases
 #   portrait-agents refresh [--portrait <dir>]      the weekly refresh: forward test, then fold in new corrections
 #   portrait-agents schedule on|off|status          run the refresh weekly (launchd on macOS)
+#   portrait-agents publish-check        may this portrait be listed? (privacy scan, fidelity >= 40%)
+#   portrait-agents card-check <card.md> the public card has the agreed shape
+#   portrait-agents publish --yes        sign in and upload the card and portrait (after the person's yes)
+#   portrait-agents unpublish            delete the listing and the local sign-in
+#   portrait-agents listing name [<name>]   check and choose the listing name
+#   portrait-agents listing keep-current on|off|status
 #   portrait-agents save <folder>             install a built portrait folder at ~/.agents/portraits/<name>/,
 #                                            keeping any earlier one under versions/
 #
@@ -372,12 +378,12 @@ save_one() {
 		[ -e "$entry" ] || continue
 		# The portrait's own history stays: earlier versions, the fidelity log
 		# and its cases, and the weekly job's logs.
-		case "$(basename "$entry")" in versions | .git | fidelity.md | fidelity | logs | .refresh.lock) continue ;; esac
+		case "$(basename "$entry")" in versions | .git | fidelity.md | fidelity | logs | .refresh.lock | .publish | publish) continue ;; esac
 		rm -rf "$entry"
 	done
 	for entry in "$src"/* "$src"/.[!.]*; do
 		[ -e "$entry" ] || continue
-		case "$(basename "$entry")" in versions | scripts | .git | fidelity.md | fidelity | logs | .refresh.lock) continue ;; esac
+		case "$(basename "$entry")" in versions | scripts | .git | fidelity.md | fidelity | logs | .refresh.lock | .publish | publish) continue ;; esac
 		cp -R "$entry" "$dest/"
 	done
 	if [ -n "$cases_src" ] && [ -d "$cases_src" ]; then
@@ -941,6 +947,7 @@ refresh_one() {
 	fi
 	work=$(mktemp -d "${TMPDIR:-/tmp}/portrait-refresh.XXXXXX") || exit 1
 	trap 'rm -rf "$work"; rmdir "$lock" 2>/dev/null' EXIT
+	refresh_work="$work"
 	command -v claude >/dev/null 2>&1 || { echo "the claude CLI is not installed"; exit 0; }
 	# Refresh effort is medium to keep token use moderate; a PORTRAIT_EFFORT
 	# override would go here.
@@ -982,7 +989,7 @@ $(cat "$work/candidates.md")"
 	next="$work/next/$(basename "$portrait")"
 	mkdir -p "$next"
 	for entry in "$portrait"/*; do
-		case "$(basename "$entry")" in versions | logs | fidelity | fidelity.md | scripts) continue ;; esac
+		case "$(basename "$entry")" in versions | logs | fidelity | fidelity.md | scripts | publish) continue ;; esac
 		cp -R "$entry" "$next/"
 	done
 	fold="Update this Agent of You portrait folder, $next, with new corrections. Edit only files in that folder.
@@ -1005,6 +1012,7 @@ $(cat "$work/forward/holdout/results.md")"
 	fi
 	save_one "$next"
 	echo "refreshed with $count new corrections"
+	listing_refresh "$portrait"
 }
 
 # schedule on|off|status: run the weekly refresh with launchd on macOS
@@ -1114,6 +1122,564 @@ PLIST
 	esac
 }
 
+# ---- Listing: publish a portrait's public card at <server>/agents/<name>.
+#
+# The listing has one explicit state machine. States: unpublished,
+# awaiting_sign_in (a device code is out), signed_in (a token, nothing
+# uploaded), published. Events: sign_in_started, sign_in_done, sign_in_failed,
+# upload_done, upload_failed, token_rejected, unpublished. listing_next is the whole
+# transition table; every command only sends events and carries out effects.
+# The listing server; its public pages live at isoform.ai/agents/<name>.
+listing_server="${PORTRAIT_SERVER:-https://isoform-aoy-server.fly.dev}"
+listing_min_fidelity=40
+listing_files="PORTRAIT.md examples.md scenarios.md"
+
+# listing_next <state> <event>: the next state, or nothing and status 1 when
+# the event cannot happen in that state.
+listing_next() {
+	case "$1" in unpublished | awaiting_sign_in | signed_in | published) ;; *) echo "unknown listing state: $1" >&2; return 2 ;; esac
+	case "$2" in sign_in_started | sign_in_done | sign_in_failed | upload_done | upload_failed | token_rejected | unpublished) ;; *) echo "unknown listing event: $2" >&2; return 2 ;; esac
+	case "$1:$2" in
+	unpublished:sign_in_started) echo awaiting_sign_in ;;
+	unpublished:sign_in_done) return 1 ;;
+	unpublished:sign_in_failed) return 1 ;;
+	unpublished:upload_done) return 1 ;;
+	unpublished:upload_failed) return 1 ;;
+	unpublished:token_rejected) return 1 ;;
+	unpublished:unpublished) echo unpublished ;;
+	awaiting_sign_in:sign_in_started) echo awaiting_sign_in ;;
+	awaiting_sign_in:sign_in_done) echo signed_in ;;
+	awaiting_sign_in:sign_in_failed) echo unpublished ;;
+	awaiting_sign_in:upload_done) return 1 ;;
+	awaiting_sign_in:upload_failed) return 1 ;;
+	awaiting_sign_in:token_rejected) return 1 ;;
+	awaiting_sign_in:unpublished) echo unpublished ;;
+	signed_in:sign_in_started) echo awaiting_sign_in ;;
+	signed_in:sign_in_done) return 1 ;;
+	signed_in:sign_in_failed) return 1 ;;
+	signed_in:upload_done) echo published ;;
+	signed_in:upload_failed) echo signed_in ;;
+	signed_in:token_rejected) echo unpublished ;;
+	signed_in:unpublished) echo unpublished ;;
+	published:sign_in_started) echo awaiting_sign_in ;;
+	published:sign_in_done) return 1 ;;
+	published:sign_in_failed) return 1 ;;
+	published:upload_done) echo published ;;
+	published:upload_failed) echo published ;;
+	published:token_rejected) echo published ;;
+	published:unpublished) echo unpublished ;;
+	esac
+}
+
+# The listing record: <portrait>/.publish, mode 0600, KEY=value lines (state,
+# name, keep_current, and the sign-in token). Nothing here ever prints the
+# token.
+listing_get() {
+	[ -f "$1/.publish" ] || { [ "$2" = state ] && echo unpublished; [ "$2" = keep_current ] && echo off; return 0; }
+	v=$(awk -F= -v k="$2" '$1 == k { print substr($0, length(k) + 2); exit }' "$1/.publish")
+	if [ -z "$v" ]; then
+		case "$2" in state) v=unpublished ;; keep_current) v=off ;; esac
+	fi
+	echo "$v"
+}
+
+listing_set() {
+	umask 077
+	f="$1/.publish"
+	touch "$f" && chmod 600 "$f"
+	awk -F= -v k="$2" -v v="$3" 'BEGIN { done = 0 } $1 == k { print k "=" v; done = 1; next } { print } END { if (!done) print k "=" v }' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+	chmod 600 "$f"
+}
+
+# listing_event <portrait> <event>: apply one event through the table.
+listing_event() {
+	state=$(listing_get "$1" state)
+	next=$(listing_next "$state" "$2") || { echo "the listing cannot take $2 while $state" >&2; return 1; }
+	listing_set "$1" state "$next"
+}
+
+# last_fidelity <portrait>: "<score> <cases> <version>" of the newest row of
+# fidelity.md, or nothing.
+last_fidelity() {
+	awk -F'|' '/^\| [0-9][0-9][0-9][0-9]-/ { s = $3; c = $4; v = $5 } END { gsub(/[ %]/, "", s); gsub(/ /, "", c); gsub(/ /, "", v); if (s != "") print s, c, v }' "$1/fidelity.md" 2>/dev/null
+}
+
+# publish-check [--portrait <dir>]: may this portrait be listed? Refuses on a
+# privacy finding or a fidelity under 40%, saying what to do; otherwise prints
+# the files that would upload.
+publish_check() {
+	portrait=""
+	if [ "${1:-}" = "--portrait" ] && [ -n "${2:-}" ]; then portrait=$(cd "$2" 2>/dev/null && pwd); fi
+	[ -n "$portrait" ] || portrait=$(newest_portrait)
+	[ -n "$portrait" ] && [ -f "$portrait/PORTRAIT.md" ] || { echo "no portrait to publish: run the build first" >&2; exit 1; }
+	if ! found=$(PORTRAIT_DIR="$portrait" "$here/portrait" check 2>&1); then
+		printf 'not publishing: the portrait check found problems.\n%s\nFix those lines in the portrait, run its check again, then publish.\n' "$found" >&2
+		exit 1
+	fi
+	fid=$(last_fidelity "$portrait")
+	if [ -z "$fid" ]; then
+		echo "not publishing: the portrait has no fidelity score yet. Build it again (the build measures one) or run the blind test on your own cases, then publish." >&2
+		exit 1
+	fi
+	score=${fid%% *}
+	if [ "$score" -lt "$listing_min_fidelity" ] 2>/dev/null; then
+		echo "not publishing: fidelity is $score%, under $listing_min_fidelity%. Mark the calibration scenarios right or wrong, or let the weekly refresh add new corrections, then build again and publish." >&2
+		exit 1
+	fi
+	echo "ok: fidelity $score%, $(echo "$fid" | cut -d' ' -f2) decisions, portrait version $(echo "$fid" | cut -d' ' -f3)"
+	echo "would upload:"
+	for f in $listing_files; do echo "  $portrait/$f"; done
+}
+
+# card-check <card.md> [--portrait <dir>]: the public card has the agreed
+# shape: a title, a summary paragraph, exactly 3 "Hire me for" items,
+# exactly 2 sample answers whose titles are scenarios in scenarios.md, and the
+# fidelity line that matches fidelity.md and the portrait version.
+card_check() {
+	card="$1"
+	shift
+	portrait=""
+	if [ "${1:-}" = "--portrait" ] && [ -n "${2:-}" ]; then portrait=$(cd "$2" 2>/dev/null && pwd); fi
+	[ -n "$portrait" ] || portrait=$(newest_portrait)
+	[ -f "$card" ] || { echo "no card: $card" >&2; exit 64; }
+	fid=$(last_fidelity "$portrait")
+	want="$(echo "$fid" | cut -d' ' -f1)% from $(echo "$fid" | cut -d' ' -f2) decisions, portrait version $(meta version "$portrait/PORTRAIT.md")"
+	lname=$(listing_get "$portrait" name)
+	awk -v want="$want" -v scen="$portrait/scenarios.md" -v lname="$lname" '
+		BEGIN { while ((getline l < scen) > 0) if (l ~ /^## [0-9]+\. /) { t = l; sub(/^## [0-9]+\. /, "", t); S[t] = 1 } }
+		# The title is the display name: what people call the owner, such as Bo.
+		NR == 1 {
+			if ($0 !~ /^# [^ ]/) { print "problem: the card starts with # <display name>"; next }
+			shown = substr($0, 3)
+			if (length(shown) > 40 || shown ~ /[<>]/ || shown ~ / $/) print "problem: the display name must be 1 to 40 characters, one line, with no < or > and no spaces at its ends"
+			next
+		}
+		# The listing name (such as sam.lee) may not stand in for the person in
+		# the card text unless it is also the display name; its address may.
+		function names_listing(line,   l, rest, i, before, after) {
+			if (lname == "" || lname == shown) return 0
+			l = tolower(line); rest = l
+			while ((i = index(rest, lname)) > 0) {
+				before = (i > 1) ? substr(rest, i - 1, 1) : ""
+				after = substr(rest, i + length(lname), 1)
+				if (before !~ /[a-z0-9.\/]/ && after !~ /[a-z0-9]/ && !(after == "." && substr(rest, i + length(lname) + 1, 1) ~ /[a-z0-9]/)) return 1
+				rest = substr(rest, i + length(lname))
+			}
+			return 0
+		}
+		NR > 1 && !/^#/ && /[^ ]/ && sec != "Fidelity" && names_listing($0) { print "problem: the card calls the person \"" lname "\"; use the display name \"" shown "\" instead" }
+		/^## / { sec = substr($0, 4); next }
+		sec == "" && /[^ ]/ { summary = 1 }
+		sec == "Hire me for" && /^- [^ ]/ { hire++ }
+		sec == "Sample answers" && /^### / { t = substr($0, 5); samples++; if (!(t in S)) print "problem: sample \"" t "\" is not a scenario in scenarios.md" }
+		sec == "Fidelity" && /[^ ]/ { fidline = $0 }
+		END {
+			if (!summary) print "problem: the card needs a summary paragraph under its title"
+			if (hire != 3) print "problem: the card needs exactly 3 Hire me for items, not " hire + 0
+			if (samples != 2) print "problem: the card needs exactly 2 sample answers, not " samples + 0
+			if (fidline != want) print "problem: the fidelity line must read: " want
+		}
+	' "$card" >"$card.problems"
+	if [ -s "$card.problems" ]; then cat "$card.problems" >&2; rm -f "$card.problems"; exit 1; fi
+	rm -f "$card.problems"
+	echo "ok: the card is ready"
+}
+
+# ---- The listing server (contract listings/1). Every call goes through
+# api_call with curl; the sign-in token reaches curl only through a private
+# header file, never as an argument, so no process list or log can show it.
+
+# api_work: a private scratch folder for request and response bodies.
+# Inside the weekly refresh it uses the refresh's own working folder, whose
+# cleanup (and lock release) the refresh already owns.
+api_work() {
+	[ -n "${api_dir:-}" ] && [ -d "$api_dir" ] && return 0
+	if [ -n "${refresh_work:-}" ] && [ -d "$refresh_work" ]; then
+		api_dir="$refresh_work/api"
+		mkdir -p "$api_dir" && chmod 700 "$api_dir"
+		return 0
+	fi
+	api_dir=$(mktemp -d "${TMPDIR:-/tmp}/portrait-listing.XXXXXX") || exit 1
+	chmod 700 "$api_dir"
+	trap 'rm -rf "$api_dir"' EXIT
+}
+
+# api_call <method> <path> <body file or -> <auth|noauth>: sets api_status
+# (000 when the server cannot be reached) and leaves the body in $api_dir/out.
+api_call() {
+	api_work
+	: >"$api_dir/out"
+	set -- "$1" "$2" "$3" "$4"
+	if [ "$4" = auth ]; then
+		umask 077
+		printf 'Authorization: Bearer %s\n' "$(listing_get "$portrait" token)" >"$api_dir/auth"
+		if [ "$3" = - ]; then
+			api_status=$(curl -sS --max-time 30 -X "$1" -H 'Content-Type: application/json' -H "@$api_dir/auth" -o "$api_dir/out" -w '%{http_code}' "$listing_server$2" 2>/dev/null) || api_status=000
+		else
+			api_status=$(curl -sS --max-time 60 -X "$1" -H 'Content-Type: application/json' -H "@$api_dir/auth" --data-binary "@$3" -o "$api_dir/out" -w '%{http_code}' "$listing_server$2" 2>/dev/null) || api_status=000
+		fi
+		rm -f "$api_dir/auth"
+	elif [ "$3" = - ]; then
+		api_status=$(curl -sS --max-time 30 -X "$1" -H 'Content-Type: application/json' -o "$api_dir/out" -w '%{http_code}' "$listing_server$2" 2>/dev/null) || api_status=000
+	else
+		api_status=$(curl -sS --max-time 30 -X "$1" -H 'Content-Type: application/json' --data-binary "@$3" -o "$api_dir/out" -w '%{http_code}' "$listing_server$2" 2>/dev/null) || api_status=000
+	fi
+	[ -n "$api_status" ] || api_status=000
+}
+
+# json_field <key>: a string or number value from the last response.
+json_field() {
+	awk -v key="$1" '
+		BEGIN { RS = "\001" }
+		{
+			s = $0
+			i = index(s, "\"" key "\"")
+			if (!i) exit
+			s = substr(s, i + length(key) + 2)
+			sub(/^[ \t\r\n]*:[ \t\r\n]*/, "", s)
+			if (substr(s, 1, 1) == "\"") {
+				out = ""
+				for (j = 2; j <= length(s); j++) {
+					c = substr(s, j, 1)
+					if (c == "\\") { j++; c = substr(s, j, 1); if (c == "n") c = " " }
+					else if (c == "\"") break
+					out = out c
+				}
+				print out
+			} else if (match(s, /^[0-9]+/)) print substr(s, 1, RLENGTH)
+		}
+	' "$api_dir/out"
+}
+
+# json_text: stdin as one JSON string literal (UTF-8 kept, control
+# characters escaped or dropped).
+json_text() {
+	awk '
+		BEGIN { ORS = ""; printf "\"" }
+		{
+			s = $0
+			gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\t/, "\\t", s); gsub(/\r/, "", s)
+			gsub(/[\001-\010\013\014\016-\037]/, "", s)
+			if (NR > 1) printf "\\n"
+			printf "%s", s
+		}
+		END { printf "\"" }
+	'
+}
+
+# json_file: a whole file as one JSON string literal, every line ending in
+# a newline as in the file.
+json_file() {
+	awk '
+		BEGIN { ORS = ""; printf "\"" }
+		{
+			s = $0
+			gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\t/, "\\t", s); gsub(/\r/, "", s)
+			gsub(/[\001-\010\013\014\016-\037]/, "", s)
+			printf "%s\\n", s
+		}
+		END { printf "\"" }
+	' "$1"
+}
+
+# api_explain: one plain line for an error response; returns 1.
+api_explain() {
+	code=$(json_field error 2>/dev/null)
+	case "$api_status:$code" in
+	000:*) echo "Could not reach the listing server; check the connection and try again." >&2 ;;
+	503:*) echo "Listings aren't open yet." >&2 ;;
+	401:*) echo "Your listing sign-in has expired or was turned off; publish again to sign in." >&2 ;;
+	403:not_invited) echo "Listing is invite only, and this email is not on the invite list yet." >&2 ;;
+	409:name_taken) echo "That listing name is taken. Choose another with: portrait-agents listing name <name>" >&2 ;;
+	409:already_listed) echo "You already have a listing named $(json_field current). Publish under that name, or unpublish it first." >&2 ;;
+	422:invalid_name) echo "That listing name is not allowed: 3 to 30 lowercase letters and digits, with single dots between them." >&2 ;;
+	429:*) echo "Too many tries just now; try again after $(json_field retryAt)." >&2 ;;
+	*) echo "The listing server answered $api_status ${code:-}: $(json_field message)" >&2 ;;
+	esac
+	return 1
+}
+
+# Listing names: 3 to 30 lowercase letters and digits, single dots between.
+valid_listing_name() {
+	printf '%s\n' "$1" | awk '{ exit !($0 ~ /^[a-z0-9]+(\.[a-z0-9]+)*$/ && length($0) >= 3 && length($0) <= 30) }'
+}
+
+# listing name [<name>]: show the listing name, or check and set a new one.
+# The default is the portrait's folder name with hyphens as dots.
+listing_name() {
+	portrait=$(newest_portrait)
+	[ -n "$portrait" ] || { echo "no portrait" >&2; exit 1; }
+	name="${1:-$(listing_get "$portrait" name)}"
+	[ -n "$name" ] || name=$(basename "$portrait" | tr '-' '.')
+	if ! valid_listing_name "$name"; then
+		echo "listing name \"$name\" is not allowed: 3 to 30 lowercase letters and digits, with single dots between them. Choose one with: portrait-agents listing name <name>" >&2
+		exit 1
+	fi
+	if [ -n "$(listing_get "$portrait" token)" ]; then
+		api_call GET "/v1/listings/name-available?name=$name" - auth
+	else
+		api_call GET "/v1/listings/name-available?name=$name" - noauth
+	fi
+	[ "$api_status" = 200 ] || { api_explain; exit 1; }
+	if grep -q '"available"[ ]*:[ ]*true' "$api_dir/out"; then
+		listing_set "$portrait" name "$name"
+		echo "listing name: $name (available)"
+	else
+		echo "listing name \"$name\" is $(json_field reason). Choose another with: portrait-agents listing name <name>" >&2
+		exit 1
+	fi
+}
+
+# api_sign_in <portrait>: the device flow. Opens the connect page, prints the
+# code, then waits (up to 9 minutes) while the person enters the email code
+# there. The device code stays in memory; only the token is kept, in
+# .publish (0600).
+api_sign_in() {
+	api_work
+	printf '{"client": "portrait-plugin/%s"}\n' "$(awk -F'"' '/"version"/ { print $4; exit }' "$here/../.claude-plugin/plugin.json" 2>/dev/null)" >"$api_dir/start"
+	api_call POST /v1/owner/device "$api_dir/start" noauth
+	# The server creates the device code: 201, or 200 from older servers.
+	case "$api_status" in
+	200 | 201) ;;
+	*) api_explain; return 1 ;;
+	esac
+	device=$(json_field deviceCode)
+	user_code=$(json_field userCode)
+	verify=$(json_field verifyUrl)
+	interval=$(json_field interval)
+	expires=$(json_field expiresIn)
+	[ -n "$interval" ] || interval=5
+	[ -n "$expires" ] || expires=900
+	[ "$expires" -le 540 ] || expires=540
+	echo "Sign in to publish: open $verify and enter the code $user_code, then the code sent to your email."
+	case "$(uname -s)" in
+	Darwin) open "$verify" >/dev/null 2>&1 ;;
+	Linux) xdg-open "$verify" >/dev/null 2>&1 ;;
+	esac
+	printf '{"deviceCode": %s}\n' "$(printf '%s' "$device" | json_text)" >"$api_dir/poll"
+	waited=0
+	while [ "$waited" -lt "$expires" ]; do
+		sleep "$interval"
+		waited=$((waited + interval))
+		api_call POST /v1/owner/device/token "$api_dir/poll" noauth
+		if [ "$api_status" = 200 ]; then
+			token=$(json_field token)
+			rm -f "$api_dir/poll"
+			[ -n "$token" ] || { echo "The listing server signed you in but sent no token." >&2; return 1; }
+			listing_set "$portrait" token "$token"
+			token=""
+			held=$(awk 'BEGIN { RS = "\001" } { i = index($0, "\"listing\""); if (!i) exit; s = substr($0, i); j = index(s, "\"name\""); if (!j) exit; s = substr(s, j + 6); sub(/^[ ]*:[ ]*"/, "", s); sub(/".*/, "", s); print s }' "$api_dir/out")
+			if [ -n "$held" ]; then listing_set "$portrait" name "$held"; fi
+			: >"$api_dir/out"
+			echo "signed in"
+			return 0
+		fi
+		case "$(json_field error)" in
+		authorization_pending) ;;
+		slow_down) interval=$((interval + 5)) ;;
+		expired_token) echo "The sign-in code expired before it was used; publish again to get a new one." >&2; return 1 ;;
+		*) api_explain; return 1 ;;
+		esac
+	done
+	echo "The sign-in was not finished in time; publish again to get a new code." >&2
+	return 1
+}
+
+# api_upload <portrait> <card.md>: PUT the public card and the three private
+# portrait files, and nothing else.
+api_upload() {
+	api_work
+	name=$(listing_get "$1" name)
+	[ -n "$name" ] || { echo "no listing name yet; choose one with: portrait-agents listing name <name>" >&2; return 1; }
+	fid=$(last_fidelity "$1")
+	body="$api_dir/put.json"
+	{
+		# The card's title is the display name, sent first.
+		printf '{"card": {"displayName": %s, "summary": ' "$(sed -n '1s/^# //p' "$2" | json_text)"
+		printf ''
+		awk 'NR == 1 { next } /^## / { exit } /[^ ]/ { print }' "$2" | tr '\n' ' ' | sed 's/  */ /g; s/ $//' | json_text
+		printf ', "hireMeFor": ['
+		awk '/^## / { sec = substr($0, 4); next } sec == "Hire me for" && /^- / { print substr($0, 3) }' "$2" | while IFS= read -r item; do
+			printf '%s%s' "${sep:-}" "$(printf '%s' "$item" | json_text)"
+			sep=", "
+		done
+		printf '], "sampleAnswers": ['
+		awk '/^## / { sec = substr($0, 4); next } sec == "Sample answers" && /^### / { if (t != "") print t "\t" a; t = substr($0, 5); a = ""; next } sec == "Sample answers" && /[^ ]/ { a = (a == "" ? $0 : a " " $0) } END { if (t != "") print t "\t" a }' "$2" | {
+			sep=""
+			while IFS="$(printf '\t')" read -r title answer; do
+				question=$(awk -v t="$title" '/^## [0-9]+\. / { cur = $0; sub(/^## [0-9]+\. /, "", cur); next } cur == t && /^- Situation: / { print substr($0, 14); exit }' "$1/scenarios.md")
+				[ -n "$question" ] || question="$title"
+				# A Situation line starts lowercase; a question on the card starts with a capital.
+				question=$(printf '%s\n' "$question" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')
+				printf '%s{"question": %s, "answer": %s}' "$sep" "$(printf '%s' "$question" | json_text)" "$(printf '%s' "$answer" | json_text)"
+				sep=", "
+			done
+		}
+		printf '], "fidelity": {"percent": %s, "decisions": %s}, "portraitVersion": %s}, ' "$(echo "$fid" | cut -d' ' -f1)" "$(echo "$fid" | cut -d' ' -f2)" "$(meta version "$1/PORTRAIT.md" | json_text)"
+		printf '"portrait": {"portrait": '
+		json_file "$1/PORTRAIT.md"
+		printf ', "examples": '
+		json_file "$1/examples.md"
+		printf ', "scenarios": '
+		json_file "$1/scenarios.md"
+		printf '}}\n'
+	} >"$body"
+	api_call PUT "/v1/listings/$name" "$body" auth
+	rm -f "$body"
+	case "$api_status" in
+	200 | 201)
+		url=$(json_field url)
+		listing_set "$1" url "$url"
+		return 0
+		;;
+	401)
+		api_explain
+		listing_set "$1" token ""
+		listing_event "$1" token_rejected
+		return 3
+		;;
+	*) api_explain; return 1 ;;
+	esac
+}
+
+# api_delete <portrait>: delete the listing on the server, then turn off the
+# token there too.
+api_delete() {
+	name=$(listing_get "$1" name)
+	api_call DELETE "/v1/listings/$name" - auth
+	case "$api_status" in
+	200 | 404) ;;
+	*) api_explain; return 1 ;;
+	esac
+	echo '{}' >"$api_dir/revoke"
+	api_call POST /v1/owner/token/revoke "$api_dir/revoke" auth
+	return 0
+}
+
+# publish --yes [--portrait <dir>]: the person has seen the card, the name and
+# the file list and said yes. Signs in if needed, uploads, prints the URL.
+publish_one() {
+	[ "${1:-}" = "--yes" ] || { echo "publish needs --yes, given only after the person has seen the card and the file list and said yes" >&2; exit 64; }
+	shift
+	publish_check "$@" >/dev/null || exit 1
+	card="$portrait/publish/card.md"
+	[ -f "$card" ] || { echo "no card at $card: draft it first" >&2; exit 1; }
+	card_check "$card" --portrait "$portrait" >/dev/null || exit 1
+	[ -n "$(listing_get "$portrait" name)" ] || { echo "no listing name yet; choose one with: portrait-agents listing name <name>" >&2; exit 1; }
+	if [ -z "$(listing_get "$portrait" token)" ]; then
+		listing_event "$portrait" sign_in_started || exit 1
+		if ! api_sign_in "$portrait"; then
+			listing_event "$portrait" sign_in_failed
+			exit 1
+		fi
+		listing_event "$portrait" sign_in_done || exit 1
+	fi
+	api_upload "$portrait" "$card"
+	result=$?
+	case "$result" in
+	0) listing_event "$portrait" upload_done || exit 1 ;;
+	3) exit 1 ;;
+	*) listing_event "$portrait" upload_failed; exit 1 ;;
+	esac
+	echo "listed: $(listing_get "$portrait" url)"
+}
+
+front_name() { awk 'NR > 1 && /^name: / { print substr($0, 7); exit }' "$1/PORTRAIT.md"; }
+
+# unpublish [--portrait <dir>]: delete the listing and its server copy, then
+# the local sign-in. Signs in first when this computer holds no token.
+unpublish_one() {
+	portrait=""
+	if [ "${1:-}" = "--portrait" ] && [ -n "${2:-}" ]; then portrait=$(cd "$2" 2>/dev/null && pwd); fi
+	[ -n "$portrait" ] || portrait=$(newest_portrait)
+	[ -n "$portrait" ] || { echo "no portrait" >&2; exit 1; }
+	state=$(listing_get "$portrait" state)
+	if [ "$state" = unpublished ] && [ -z "$(listing_get "$portrait" token)" ]; then
+		rm -f "$portrait/.publish"
+		echo "not listed: there is nothing to take down"
+		return 0
+	fi
+	if [ -z "$(listing_get "$portrait" token)" ]; then
+		listing_event "$portrait" sign_in_started || exit 1
+		if ! api_sign_in "$portrait"; then
+			listing_event "$portrait" sign_in_failed
+			exit 1
+		fi
+		listing_event "$portrait" sign_in_done || exit 1
+	fi
+	api_delete "$portrait" || exit 1
+	listing_event "$portrait" unpublished || exit 1
+	rm -f "$portrait/.publish"
+	echo "unpublished: the listing and its server copy are deleted, and the sign-in is removed from this computer"
+}
+
+# listing_refresh <portrait>: with "keep my listing current" on and the
+# listing published, redraft the card from the refreshed portrait, check it,
+# keep it in publish/card.md for the person to see, and upload it again.
+listing_refresh() {
+	[ "$(listing_get "$1" keep_current)" = on ] || return 0
+	[ "$(listing_get "$1" state)" = published ] || return 0
+	fid=$(last_fidelity "$1")
+	want="$(echo "$fid" | cut -d' ' -f1)% from $(echo "$fid" | cut -d' ' -f2) decisions, portrait version $(meta version "$1/PORTRAIT.md")"
+	draft="Draft the public card for this Agent of You portrait, exactly in the shape below, from PORTRAIT.md and scenarios.md, and nothing else. Use only what the portrait says; no names of clients or other people, no paths, emails or private details. Keep the title of the current card, $(sed -n '1s/^# //p' "$1/publish/card.md" 2>/dev/null), and call the person only by it, never by the listing name $(listing_get "$1" name).
+
+# <the display name the card already uses, such as Bo>
+<a summary paragraph: who you would be hiring and how they work, 2 or 3 sentences>
+
+## Hire me for
+- <a kind of work, one line>
+- <a kind of work, one line>
+- <a kind of work, one line>
+
+## Sample answers
+### <the title of a scenario in scenarios.md>
+<what the agent would do there, 1 or 2 sentences>
+### <the title of another scenario in scenarios.md>
+<what the agent would do there, 1 or 2 sentences>
+
+## Fidelity
+$want
+
+## PORTRAIT.md
+$(cat "$1/PORTRAIT.md")
+
+## scenarios.md
+$(cat "$1/scenarios.md")"
+	mkdir -p "$1/publish"
+	timed 600 "$1/publish/card.next.md" "$1/publish/card.err" "$1" \
+		claude -p "$draft" --effort medium --tools "" --strict-mcp-config --no-session-persistence || { echo "redrafting the listing card failed; the listing is unchanged"; rm -f "$1/publish/card.next.md" "$1/publish/card.err"; return 0; }
+	rm -f "$1/publish/card.err"
+	if ! card_check "$1/publish/card.next.md" --portrait "$1" || ! PORTRAIT_DIR="$1" "$here/portrait" check >/dev/null; then
+		echo "the new listing card did not pass its checks; the listing is unchanged"
+		rm -f "$1/publish/card.next.md"
+		return 0
+	fi
+	mv "$1/publish/card.next.md" "$1/publish/card.md"
+	echo "new listing card:"
+	cat "$1/publish/card.md"
+	portrait="$1"
+	api_upload "$1" "$1/publish/card.md"
+	case "$?" in
+	0) listing_event "$1" upload_done; echo "listing updated" ;;
+	3) echo "the listing sign-in has expired; the listing keeps the earlier card until you publish again" ;;
+	*) listing_event "$1" upload_failed; echo "uploading the new card failed; the listing keeps the earlier one" ;;
+	esac
+	return 0
+}
+
+# listing keep-current on|off|status: whether the weekly refresh redrafts the
+# card and uploads it again. Off unless the person turns it on.
+listing_keep_current() {
+	portrait=$(newest_portrait)
+	[ -n "$portrait" ] || { echo "no portrait" >&2; exit 1; }
+	case "$1" in
+	on) listing_set "$portrait" keep_current on; echo "keep my listing current: on" ;;
+	off) listing_set "$portrait" keep_current off; echo "keep my listing current: off" ;;
+	status) echo "keep my listing current: $(listing_get "$portrait" keep_current)" ;;
+	*) echo "usage: portrait-agents listing keep-current on|off|status" >&2; exit 64 ;;
+	esac
+}
+
 command="${1:-}"
 [ "$#" -gt 0 ] && shift
 case "$command" in
@@ -1166,6 +1732,40 @@ split)
 refresh)
 	not_in_helper
 	refresh_one "$@"
+	;;
+publish-check)
+	not_in_helper
+	publish_check "$@"
+	;;
+card-check)
+	[ "$#" -ge 1 ] || { echo "usage: portrait-agents card-check <card.md> [--portrait <dir>]" >&2; exit 64; }
+	card_check "$@"
+	;;
+publish)
+	not_in_helper
+	publish_one "$@"
+	;;
+unpublish)
+	not_in_helper
+	unpublish_one "$@"
+	;;
+listing)
+	not_in_helper
+	case "${1:-}" in
+	keep-current)
+		[ "$#" -eq 2 ] || { echo "usage: portrait-agents listing keep-current on|off|status" >&2; exit 64; }
+		listing_keep_current "$2"
+		;;
+	name)
+		[ "$#" -le 2 ] || { echo "usage: portrait-agents listing name [<name>]" >&2; exit 64; }
+		listing_name "${2:-}"
+		;;
+	*) echo "usage: portrait-agents listing keep-current on|off|status | name [<name>]" >&2; exit 64 ;;
+	esac
+	;;
+listing-next)
+	[ "$#" -eq 2 ] || { echo "usage: portrait-agents listing-next <state> <event>" >&2; exit 64; }
+	listing_next "$1" "$2"
 	;;
 schedule)
 	[ "$#" -eq 1 ] || { echo "usage: portrait-agents schedule on|off|status" >&2; exit 64; }

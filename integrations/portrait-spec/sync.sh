@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copies the canonical portrait files into every platform package: the
-# shared scripts (portrait-agents and portrait), the helper skill, and the build, do and
-# fidelity skills. Run it after editing anything in this folder;
+# shared scripts (portrait-agents and portrait), the helper skill, and the build,
+# do, fidelity, publish and unpublish skills. Run it after editing anything in this folder;
 # portrait_agents_test.go fails when a package copy drifts.
 #
 # A package is a folder with a portrait.vars file (KEY=value lines: LEAD,
@@ -54,4 +54,6 @@ for vars in "$root"/*/portrait.vars; do
 	fill "$package/skills/build/SKILL.md" portrait-build "$here/lead.md" "$vars"
 	fill "$package/skills/do/SKILL.md" portrait-do "$here/do.md" "$vars"
 	fill "$package/skills/fidelity/SKILL.md" portrait-fidelity "$here/fidelity.md" "$vars"
+	fill "$package/skills/publish/SKILL.md" portrait-publish "$here/publish.md" "$vars"
+	fill "$package/skills/unpublish/SKILL.md" portrait-unpublish "$here/unpublish.md" "$vars"
 done

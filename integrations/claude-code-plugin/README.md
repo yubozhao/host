@@ -54,6 +54,17 @@ At the end of `/portrait:build`, a weekly refresh is turned on (launchd on macOS
 
 Effort is set to keep token use moderate. `/portrait:build` runs at high effort, and so do its helpers where the agent has a setting: Claude `--effort high`, Codex `model_reasoning_effort=high`. Gemini, Cursor, Kimi and Alma have no run-level effort setting, so they run at their default (Kimi's effort is set in its own config, which is never edited). The progress line shows it, such as `Codex: reading (high)...`. A run that fails at high effort tries once more at default and says so. `/portrait:do`, the blind test (both its runs) and the weekly refresh use medium effort. A helper run stops after 15 minutes at high effort or 10 at default; `PORTRAIT_AGENT_TIMEOUT` overrides both, up to 20 minutes.
 
+## Publish your listing: /portrait:publish
+
+`/portrait:publish` lists your portrait so people can find it and ask to hire it. Listing is by invite only, you approve every job, and no money moves. It is the one command that asks you before acting:
+
+1. It refuses if the portrait check finds anything private, or if the portrait's last fidelity score is under 40%, and says what to do next.
+2. It drafts a public card: a summary, three kinds of work to hire you for, two sample answers from your scenarios, the fidelity score and the portrait version.
+3. It shows you the exact card and the exact files that would upload: `PORTRAIT.md`, `examples.md` and `scenarios.md`, never `corrections.md`, the logs or `versions/`. Nothing uploads unless you say yes.
+4. You sign in with a code sent to your email, and the sign-in stays in a private file in the portrait folder that nothing prints.
+
+`portrait-agents listing keep-current on` lets the weekly refresh redraft the card and upload it again; it is off until you turn it on. `/portrait:unpublish` deletes the listing and the server's copy, and removes the sign-in from this computer.
+
 ## Your other agents
 
 If you also use Codex, Gemini, Cursor, Kimi or Alma on this computer, Claude asks each of them for its own part and corrections, built from its own memory and history, and merges the parts into one prompt. There is no question first: Claude finds every agent, Kimi included, runs them and shows one progress line each, such as `Codex: reading...` or `Gemini: too old, skipped`.
@@ -140,6 +151,7 @@ The full test suite (stub agent CLIs and a temporary home folder, so it never to
 - `scripts/portrait-agents`: the shared lead logic (`scripts/portrait-agents` is its older name, kept as an alias for one version). It finds, installs, runs and removes the helpers, searches each agent's history for your own typed corrections, checks the drafts (shape, sources, privacy), bundles them for the lead, and saves the portrait folder. It is POSIX `sh` and `awk`, with no other runtime (it uses `zstdcat` for Codex's compressed logs when it is installed).
 - `skills/do/SKILL.md`: `/portrait:do`, rendered from `integrations/portrait-spec/do.md`.
 - `skills/fidelity/SKILL.md`: `/portrait:fidelity`, rendered from `integrations/portrait-spec/fidelity.md`.
+- `skills/publish/SKILL.md` and `skills/unpublish/SKILL.md`: `/portrait:publish` and `/portrait:unpublish`, rendered from `publish.md` and `unpublish.md`.
 - `scripts/portrait`: the tool that travels inside every portrait folder: `check`, `install <agent>` and `uninstall <agent>`, `snapshot`, and `verdict <n> right|wrong [reason]`.
 - `helpers/portrait-helper/SKILL.md`: the helper that the other agents run.
 - `portrait.vars`: this platform's values for the shared lead steps (its name, id and script path).
